@@ -50,7 +50,7 @@ int strncmp(const char *s1, const char *s2, size_t n) {
 }
 
 char *strcat(char *dst, const char *src) {
-    if (src == null) {
+    if (src == NULL) {
 	return dst;
     }
     char *res = dst;
@@ -96,7 +96,7 @@ char* strsep(char** stringp, const char* delim){
    }
    char *res = *stringp, *temp = NULL;
    while (*delim) {
-	temp = strchr(**stringp, (int)*delim);
+	temp = strchr(*stringp, (int)*delim);
 	if (temp == NULL) {
 	    delim++;
 	} else {
