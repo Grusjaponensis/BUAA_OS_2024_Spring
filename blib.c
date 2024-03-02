@@ -91,22 +91,33 @@ char *strchr(const char *str, int character){
 }
 
 char* strsep(char** stringp, const char* delim){
-   if (*stringp == NULL)  {
-	return NULL;
-   }
-   char *res = *stringp, *temp = NULL;
-   while (*delim) {
-	temp = strchr(*stringp, (int)*delim);
-	if (temp == NULL) {
-	    delim++;
-	} else {
-	    *temp = '\0';
-	    *stringp = temp + 1;
-	    return res;
-	}
-   }
-   *stringp = NULL;
-   return NULL;
+    if (*stringp == NULL) {
+        return NULL;
+    }
+    char *temp = NULL, *res = *stringp, *nearest = NULL;
+    while (**stringp != '\0') {
+        char *ptr = (char *)delim;
+        temp = NULL;
+        while (*ptr != '\0') {
+            temp = strchr(*stringp, (int)*ptr);
+            if (nearest == NULL) {
+                nearest = temp;
+            } else {
+                if (nearest - temp > 0) {
+                    nearest = temp;
+                }
+            }
+            ptr++;
+        }
+        if (nearest != NULL) { // find and search for the closest one
+                *nearest = '\0';
+                *stringp = nearest + 1;
+                return res;
+        }
+        (*stringp)++;
+    }
+    *stringp = NULL;
+    return res; 
 }
 
 
