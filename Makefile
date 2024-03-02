@@ -10,20 +10,20 @@ casegen: casegen.c
 	gcc casegen.c -o casegen
 
 case_add: casegen calc
-	./casegen "add" 100 | ./calc > case_add
+	./casegen "add" 100 > case_add
 
 case_sub: casegen calc
-	./casegen "sub" 100 | ./calc > case_sub
+	./casegen "sub" 100 > case_sub
 
 case_mul: casegen calc
-	./casegen "mul" 100 | ./calc > case_mul
+	./casegen "mul" 100 > case_mul
 
 case_div: casegen calc
-	./casegen "div" 100 | ./calc > case_div
+	./casegen "div" 100 > case_div
 
 case_all: case_add case_sub case_mul case_div
 	touch case_all
-	cat case_add > case_all
+	cat case_add >> case_all
 	cat case_sub >> case_all
 	cat case_mul >> case_all
 	cat case_div >> case_all
