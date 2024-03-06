@@ -1,4 +1,7 @@
-build: code/fibo.c
-	gcc -I include/ code/fibo.c -o code/fibo.o
+all: code/fibo.o code/main.o
+	gcc code/fibo.o code/main.o -o fibo
+
+clean:
+	rm code/fibo.o code/main.o
 
 

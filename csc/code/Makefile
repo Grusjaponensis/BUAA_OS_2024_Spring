@@ -1,5 +1,3 @@
-compile: fibo.o
-	gcc fibo.o -o fibo
-
-build: fibo.c
-	gcc -c fibo.c ../include/fibo.h -o fibo.o
+all: fibo.c main.c
+	gcc -c fibo.c -o fibo.o -I ../include/
+	gcc -c main.c -o main.o -I ../include/
