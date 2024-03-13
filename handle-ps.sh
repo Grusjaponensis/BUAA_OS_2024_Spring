@@ -40,7 +40,15 @@ elif [ ! -z "$CMD" ]; then
     grep $CMD $FILE 
 elif [ ! -z $PID ]; then
     # Your code here. (3/3)
-    grep "\s+$PID\s+\d+" $FILE
+    next=$PID
+    while [ ! -z "$(grep "[[:space:]+]$next[[:space:]+][[:digit:]+]" $FILE)" ];
+    do
+	grep "[[:space:]+]$next[[:space:]+]" $FILE > temp.txt
+	next=$(awk '{print $3}' temp.txt)
+	echo $next
+    done
+   
+    grep "[[:space:]+]$PID[[:space:]+]" $FILE | awk '{print $3}'
 else
     usage
     exit 1
