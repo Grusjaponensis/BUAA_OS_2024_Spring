@@ -48,7 +48,7 @@ elif [ ! -z $PID ]; then
 	echo $next
     done
    
-    grep "[[:space:]+]$PID[[:space:]+]" $FILE | awk '{print $3}'
+   # grep "[[:space:]+]$PID[[:space:]+][[:digit:]+]" $FILE | awk '{print $3}'
 else
     usage
     exit 1
