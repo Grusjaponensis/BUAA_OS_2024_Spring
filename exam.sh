@@ -18,10 +18,7 @@ gcc test/code/*.o -o test/hello
 
 mv test/err.txt ./
 
-chmod u+rw err.txt 
-chmod g+r err.txt
-chmod o+xr err.txt
-chmod a+x err.txt
+chmod u+rw,g+r,o+xr,a+x err.txt
 
 n1=1
 n2=1
