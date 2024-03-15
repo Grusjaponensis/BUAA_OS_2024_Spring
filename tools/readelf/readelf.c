@@ -29,7 +29,7 @@ int is_elf_format(const void *binary, size_t size) {
  */
 
 int readelf(const void *binary, size_t size) {
-	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)binary;
+	Elf32_Ehdr *ehdr = (Elf32_Ehdr *)binary; // cast to 'Elf32_Ehdr'
 
 	// Check whether `binary` is a ELF file.
 	if (!is_elf_format(binary, size)) {
@@ -42,15 +42,25 @@ int readelf(const void *binary, size_t size) {
 	const void *sh_table;
 	Elf32_Half sh_entry_count;
 	Elf32_Half sh_entry_size;
-	/* Exercise 1.1: Your code here. (1/2) */
+	
+	/* 1. Find the section header table using index_of_section + binary.
+	 * 2. Get size and number of sections using Elf32_Shdr struct.
+	 * 3. Iterate using index + offset.
+	 * */
 
+	/* Exercise 1.1: Your code here. (1/2) */
+	sh_table = binary + ehdr->e_shoff; // 'binary' is the entry point, which is the beginning of ELF.
+	sh_entry_count = ehdr->e_shnum;	   // get EntryNumber from ELF struct
+	sh_entry_size = ehdr->e_shentsize;
+	
 	// For each section header, output its index and the section address.
 	// The index should start from 0.
 	for (int i = 0; i < sh_entry_count; i++) {
 		const Elf32_Shdr *shdr;
 		unsigned int addr;
 		/* Exercise 1.1: Your code here. (2/2) */
-
+		shdr = (Elf32_Shdr*)(sh_table + i * sh_entry_size); // section is next to the table, offset: i * extry_size
+		addr = shdr->sh_addr;	
 		printf("%d:0x%x\n", i, addr);
 	}
 
