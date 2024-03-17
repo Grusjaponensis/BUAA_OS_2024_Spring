@@ -20,24 +20,80 @@ void vprintfmt(fmt_callback_t out, void *data, const char *fmt, va_list ap) {
 		/* scan for the next '%' */
 		/* Exercise 1.4: Your code here. (1/8) */
 
+		const char *ptr = fmt;
+		while (*ptr != '%' && *ptr != '\0') {
+			ptr++;
+		}
+ 
 		/* flush the string found so far */
 		/* Exercise 1.4: Your code here. (2/8) */
+		
+		out(data, fmt, ptr - fmt); // now ptr points to the '%', the char between ptr and fmt are waiting for output.
+		fmt = ptr; 	// Allowed, const pointer only means the content it points to was unmutable, but the pointer can point
+				// to somewhere else as long as it is const as well.
 
 		/* check "are we hitting the end?" */
 		/* Exercise 1.4: Your code here. (3/8) */
+		
+		if (*fmt == '\0') {
+			break;
+		}
 
 		/* we found a '%' */
 		/* Exercise 1.4: Your code here. (4/8) */
 
+		fmt++;
+		
+		/* Format pattern:
+		 * 	%[flags][width][length]<specifier>
+		 * 
+		 * - flags: '-': left aligned, default right; 
+		 *          '0': 0 padding when short than specified width;
+		 * - width: a number, represents the min width of the output. When bigger than the actual length, padding 
+		 *   	    with ' '(spaces), else do nothing.
+		 * - length: 'l', %ld and %lD -> long int, others (%lx, %lo, %lb, %lu, ...) -> unsigned long int;
+		 * - specifier: 'b' unsigned binary
+		 *   		'd', 'D' decimal
+		 *   		'o', 'O' unsigned octal
+		 *   		'u'. 'U' unsigned decimal
+		 *   		'x', 'X' unsigned hexadecimal, lowercase/uppercase
+		 *   		'c' char
+		 *   		's' string
+		 *
+		 */
+
 		/* check format flag */
 		/* Exercise 1.4: Your code here. (5/8) */
+		
+		ladjust = 0;  // default: Right aligned
+		padc = ' ';
+		if (*fmt == '-') {
+			ladjust = 1; // '-' enables left aligned
+			fmt++;
+		} else if (*fmt == '0') {
+			padc = '0';  // '0' enables 0 padding
+			fmt++;
+		}
 
 		/* get width */
 		/* Exercise 1.4: Your code here. (6/8) */
-
+		
+		width = 0;
+		while (*fmt >= '0' && *fmt <= '9') {
+			width *= 10;
+			width += (*fmt - '0');
+			fmt++;	
+		}
+		
 		/* check for long */
 		/* Exercise 1.4: Your code here. (7/8) */
-
+		
+		long_flag = 0;
+		if (*fmt == 'l') {
+			long_flag = 1;
+			fmt++;
+		}
+		
 		neg_flag = 0;
 		switch (*fmt) {
 		case 'b':
@@ -63,7 +119,13 @@ void vprintfmt(fmt_callback_t out, void *data, const char *fmt, va_list ap) {
 			 * others. (hint: 'neg_flag').
 			 */
 			/* Exercise 1.4: Your code here. (8/8) */
-
+			
+			// The third parameter of 'print_num' is type of unsigned long, make sure 'num' is positive!
+			if (num < 0) {
+				neg_flag = 1;
+				num = -num;
+			}
+			print_num(out, data, num, 10, neg_flag, width, ladjust, padc, 0);	
 			break;
 
 		case 'o':
@@ -189,7 +251,7 @@ void print_num(fmt_callback_t out, void *data, unsigned long u, int base, int ne
 	int i;
 
 	do {
-		int tmp = u % base;
+		int tmp = u % base; // Be careful! Mod nagetive number is different from mod positive
 		if (tmp <= 9) {
 			*p++ = '0' + tmp;
 		} else if (upcase) {
