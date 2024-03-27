@@ -19,6 +19,24 @@ void printk(const char *fmt, ...) {
 }
 /* End of Key Code "printk" */
 
+void inputk(void *data, char *buf, size_t len) {
+	for (int i = 0; i < len; i++) {
+		while ((buf[i] = scancharc()) == '\0') {
+		}
+		if (buf[i] == '\r') {
+			buf[i] = '\n';
+		}
+	}
+}
+
+int scanf(const char *fmt, ...) {
+	va_list ap;
+	va_start(ap, fmt);
+	int result = vscanfmt(inputk, NULL, fmt, ap);
+	va_end(ap);
+	return result;	
+}
+
 void print_tf(struct Trapframe *tf) {
 	for (int i = 0; i < sizeof(tf->regs) / sizeof(tf->regs[0]); i++) {
 		printk("$%2d = %08x\n", i, tf->regs[i]);

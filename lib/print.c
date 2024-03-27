@@ -5,6 +5,87 @@ static void print_char(fmt_callback_t, void *, char, int, int);
 static void print_str(fmt_callback_t, void *, const char *, int, int);
 static void print_num(fmt_callback_t, void *, unsigned long, int, int, int, int, char, int);
 
+int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
+	int *ip;
+	char *cp;
+	char ch;
+	int base, num, neg, ret = 0;
+
+	while (*fmt) {
+		if (*fmt == '%') {
+			ret++; // number of format string ?
+			fmt++;
+			do {
+				in(data, &ch, 1); // skip all white spaces
+			} while (ch == ' ' || ch == '\t' || ch == '\n');
+			switch (*fmt) {
+				case 'd':
+					num = 0;
+					if (ch == '-') {
+						neg = 1;
+						in(data, &ch, 1);
+					} else {
+						neg = 0;
+					}
+					
+					while (ch <= '9' && ch >= '0') {
+						num = num * 10 + (ch - '0');
+						in(data, &ch, 1);
+					}
+					
+					ip = (int *)va_arg(ap, int*);
+				        if (neg) {
+						num = -num;
+					}
+					*ip = num;
+					ret++;
+					break;
+				case 'x':
+					num = 0;
+					if (ch == '-') {
+						neg = 1;
+						in(data, &ch, 1);
+					} else {
+						neg = 0;
+					}
+					
+					while ((ch <= '9' && ch >= '0') || (ch <= 'f' && ch >= 'a')) {
+						num = num * 16 + (ch >= 'a' && ch <= 'f' ? ch - 'a' + 10 : ch - '0');
+						in(data, &ch, 1);
+					}
+
+					if (neg) {
+						num = -num;
+					}
+					ip = (int *)va_arg(ap, int *);
+					*ip = num;
+					ret++;
+					break;
+				case 'c':
+					in(data, &ch, 1);
+					char *c = (char *)va_arg(ap, int *);
+					*c = ch;
+					ret++;
+					break;
+				case 's':
+					cp = (char *)va_arg(ap, char *);
+					char *temp = cp;
+					in(data, &ch, 1);
+					while (ch != '\t' && ch != '\n' && ch != ' ') {
+						*temp = ch;
+						in(data, &ch, 1);
+						temp++;
+					}
+					ret++;
+					*temp = '\0';
+					break;
+			}
+			fmt++;
+		}
+	}
+	return ret;
+}
+
 void vprintfmt(fmt_callback_t out, void *data, const char *fmt, va_list ap) {
 	char c;
 	const char *s;
