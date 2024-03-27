@@ -9,6 +9,7 @@ void vprintfmt(fmt_callback_t out, void *data, const char *fmt, va_list ap) {
 	char c;
 	const char *s;
 	long num;
+	long x, y, z;
 
 	int width;
 	int long_flag; // output is long (rather than int)
@@ -96,6 +97,51 @@ void vprintfmt(fmt_callback_t out, void *data, const char *fmt, va_list ap) {
 		
 		neg_flag = 0;
 		switch (*fmt) {
+		case 'P':
+			if (long_flag) {
+				x = va_arg(ap, long int);
+			} else {
+				x = va_arg(ap, int);
+			}
+			
+			out(data, "(", 1);
+			
+			if (x < 0) {
+				x = -x;	
+				print_num(out, data, x, 10, 1, width, ladjust, padc, 0);
+			} else {
+				print_num(out, data, x, 10, 0, width, ladjust, padc, 0);
+			}
+
+			if (long_flag) {
+				y = va_arg(ap, long int);
+			} else {
+				y = va_arg(ap, int);
+			}
+			
+			out(data, ",", 1);
+			
+			if (y < 0) {
+				y = -y;
+				print_num(out, data, y, 10, 1, width, ladjust, padc, 0);
+			} else {
+				print_num(out, data, y, 10, 0, width, ladjust, padc, 0);
+			}
+			
+			out(data, ",", 1);
+
+			if (long_flag) {
+				z = (long int)((x + y) * (x - y));
+				z = z < 0 ? -z : z;
+			} else {
+				z = (int)((x + y) * (x - y));
+				z = z < 0 ? -z : z;
+			}
+			print_num(out, data, z, 10, 0, width, ladjust, padc, 0);
+			
+			out(data, ")", 1);
+
+			break;
 		case 'b':
 			if (long_flag) {
 				num = va_arg(ap, long int);
