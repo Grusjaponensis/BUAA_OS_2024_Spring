@@ -8,7 +8,7 @@ static void print_num(fmt_callback_t, void *, unsigned long, int, int, int, int,
 int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 	int *ip;
 	char *cp;
-	char ch;
+	char ch, *c;
 	int base, num, neg, ret = 0;
 
 	while (*fmt) {
@@ -62,15 +62,16 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 					ret++;
 					break;
 				case 'c':
-					in(data, &ch, 1);
-					char *c = (char *)va_arg(ap, int *);
+					// in(data, &ch, 1); 
+					c = (char *)va_arg(ap, int *);
+
 					*c = ch;
 					ret++;
 					break;
 				case 's':
 					cp = (char *)va_arg(ap, char *);
 					char *temp = cp;
-					in(data, &ch, 1);
+					// in(data, &ch, 1);
 					while (ch != '\t' && ch != '\n' && ch != ' ') {
 						*temp = ch;
 						in(data, &ch, 1);
