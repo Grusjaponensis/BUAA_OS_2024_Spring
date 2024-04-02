@@ -27,6 +27,8 @@ void mips_detect_memory(u_int _memsize) {
 	/* Step 2: Calculate the corresponding 'npage' value. */
 	/* Exercise 2.1: Your code here. */
 
+	npage = memsize / PAGE_SIZE;
+
 	printk("Memory size: %lu KiB, number of pages: %lu\n", memsize / 1024, npage);
 }
 
@@ -44,7 +46,7 @@ void *alloc(u_int n, u_int align, int clear) {
 	/* Initialize `freemem` if this is the first time. The first virtual address that the
 	 * linker did *not* assign to any kernel code or global variables. */
 	if (freemem == 0) {
-		freemem = (u_long)end; // end
+		freemem = (u_long)end; // defined in 'kernel.lds'
 	}
 
 	/* Step 1: Round up `freemem` up to be aligned properly */
@@ -57,7 +59,7 @@ void *alloc(u_int n, u_int align, int clear) {
 	freemem = freemem + n;
 
 	// Panic if we're out of memory.
-	panic_on(PADDR(freemem) >= memsize);
+	panic_on(PADDR(freemem) >= memsize); // macro "PADDR" translate vitual addr to physical addr
 
 	/* Step 4: Clear allocated chunk if parameter `clear` is set. */
 	if (clear) {
@@ -92,17 +94,39 @@ void mips_vm_init() {
 void page_init(void) {
 	/* Step 1: Initialize page_free_list. */
 	/* Hint: Use macro `LIST_INIT` defined in include/queue.h. */
-	/* Exercise 2.3: Your code here. (1/4) */
+	
+	LIST_INIT(&page_free_list); // expands to "(&page_free_list)->lh_first = NULL;"
+								// which is equivalent to "page_free_list.lh_first = NULL;"
 
 	/* Step 2: Align `freemem` up to multiple of PAGE_SIZE. */
-	/* Exercise 2.3: Your code here. (2/4) */
+
+	freemem = ROUND(freemem, PAGE_SIZE); // macro 'ROUND' creates a binary mask for those n who is power of 2, and then round them.
 
 	/* Step 3: Mark all memory below `freemem` as used (set `pp_ref` to 1) */
-	/* Exercise 2.3: Your code here. (3/4) */
+
+	// notice that 'freemem' is still a virtual address!
+	u_long i = 0;
+	for (; page2kva(pages + i) < freemem; i++) {
+		(pages + i)->pp_ref = 1;
+	}
+	/* or:
+		int used_page_index = PPN(PADDR(freemem));
+		for (u_long i = 0; i < used_page_index; i++) {
+			pages[i].pp_ref = 1;
+		}
+	*/
 
 	/* Step 4: Mark the other memory as free. */
-	/* Exercise 2.3: Your code here. (4/4) */
 
+	for (; i < npage; i++) {
+		LIST_INSERT_HEAD(&page_free_list, pages + i, pp_link);
+	}
+	/* or:
+		for (u_long i = used_page_index; i < npage; i++) {
+			LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
+		}
+	*/
+	
 }
 
 /* Overview:
@@ -122,12 +146,20 @@ int page_alloc(struct Page **new) {
 	/* Step 1: Get a page from free memory. If fails, return the error code.*/
 	struct Page *pp;
 	/* Exercise 2.4: Your code here. (1/2) */
+	
+	if (LIST_EMPTY(&page_free_list)) {
+		// no free memory, return error code defined in <error.h>
+		return -E_NO_MEM;
+	}
+	pp = LIST_FIRST(&page_free_list);
 
 	LIST_REMOVE(pp, pp_link);
 
 	/* Step 2: Initialize this page with zero.
 	 * Hint: use `memset`. */
 	/* Exercise 2.4: Your code here. (2/2) */
+
+	memset((void *)page2kva(pp), 0, PAGE_SIZE);
 
 	*new = pp;
 	return 0;
@@ -143,6 +175,8 @@ void page_free(struct Page *pp) {
 	assert(pp->pp_ref == 0);
 	/* Just insert it into 'page_free_list'. */
 	/* Exercise 2.5: Your code here. */
+
+	LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
 
 }
 
@@ -170,6 +204,12 @@ static int pgdir_walk(Pde *pgdir, u_long va, int create, Pte **ppte) {
 	/* Step 1: Get the corresponding page directory entry. */
 	/* Exercise 2.6: Your code here. (1/3) */
 
+	pgdir_entryp = pgdir + PDX(va);
+	/* 'pgdir' is the base addr of PageDirectory, and get the PageDirectory offset using 'PDX' macro,
+	 * 'pgdir_entryp' points to an page entry with physical page number(PPN) with valid bits
+	 * 'pgdir_entryp' points to -> [31 ---(offset of page table entry)--- 11 ---(valid bits)--- 0]
+	 */
+
 	/* Step 2: If the corresponding page table is not existent (valid) then:
 	 *   * If parameter `create` is set, create one. Set the permission bits 'PTE_C_CACHEABLE |
 	 *     PTE_V' for this new page in the page directory. If failed to allocate a new page (out
@@ -178,8 +218,23 @@ static int pgdir_walk(Pde *pgdir, u_long va, int create, Pte **ppte) {
 	 */
 	/* Exercise 2.6: Your code here. (2/3) */
 
+	if (!(*pgdir_entryp & PTE_V)) { // PTE_V: page valid bit, if this page is not valid
+		if (create) {
+			int return_result = page_alloc(&pp);
+			if (!return_result) return return_result;
+			pp->pp_ref = 1;
+			*pgdir_entryp = page2pa(pp) | PTE_C_CACHEABLE | PTE_V; // 'page2pa' translate page to physical addr (<<12), and the lower 12 bits is reserved for valid bits
+		} else {
+			*ppte = NULL; // create = 0 && invalid page directory entry: no valid page table base, *ppte = NULL
+			return 0;
+		}
+	}
+
 	/* Step 3: Assign the kernel virtual address of the page table entry to '*ppte'. */
 	/* Exercise 2.6: Your code here. (3/3) */
+
+	// *pgdir_entryp is valid, PTE_ADDR translates it into an addr without valid bits, then into kenel virtual addr to get page table entry
+	*ppte = (Pte *)(KADDR(PTE_ADDR(*pgdir_entryp)) + PTX(va)); // page table base + offset
 
 	return 0;
 }
