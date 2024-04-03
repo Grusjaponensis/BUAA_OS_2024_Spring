@@ -10,7 +10,6 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 	char *cp;
 	char ch, *c;
 	int base, num, neg, ret = 0;
-	int flag = 0;
 
 	while (*fmt) {
 		if (*fmt == '%') {
@@ -32,17 +31,11 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 					while (ch <= '9' && ch >= '0') {
 						num = num * 10 + (ch - '0');
 						in(data, &ch, 1);
-						flag = 1;
 					}
 					
 					ip = (int *)va_arg(ap, int*);
-				        if (neg) {
-						num = -num;
-					}
+				    if (neg) { num = -num; }
 					*ip = num;
-					if (flag) {
-					ret++;
-					}
 					break;
 				case 'x':
 					num = 0;
@@ -56,7 +49,6 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 					while ((ch <= '9' && ch >= '0') || (ch <= 'f' && ch >= 'a')) {
 						num = num * 16 + (ch >= 'a' && ch <= 'f' ? ch - 'a' + 10 : ch - '0');
 						in(data, &ch, 1);
-						flag = 1;
 					}
 
 					if (neg) {
@@ -64,18 +56,11 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 					}
 					ip = (int *)va_arg(ap, int *);
 					*ip = num;
-					if (flag) {
-					ret++;
-					}
 					break;
 				case 'c':
 					// in(data, &ch, 1); 
 					c = (char *)va_arg(ap, int *);
-
 					*c = ch;
-					if (ch != ' ' && ch != '\n' && ch != '\t') {
-						ret++;
-					}
 					break;
 				case 's':
 					cp = (char *)va_arg(ap, char *);
@@ -85,9 +70,6 @@ int vscanfmt(scan_callback_t in, void *data, const char *fmt, va_list ap) {
 						*temp = ch;
 						in(data, &ch, 1);
 						temp++;
-					}
-					if (temp > cp) {
-						ret++;
 					}
 					*temp = '\0';
 					break;
