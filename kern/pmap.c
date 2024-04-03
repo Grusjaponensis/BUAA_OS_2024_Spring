@@ -27,7 +27,7 @@ void mips_detect_memory(u_int _memsize) {
 	/* Step 2: Calculate the corresponding 'npage' value. */
 	/* Exercise 2.1: Your code here. */
 
-	npage = memsize / PAGE_SIZE;
+	npage = memsize >> PGSHIFT; // or: memsize / PGSIZE
 
 	printk("Memory size: %lu KiB, number of pages: %lu\n", memsize / 1024, npage);
 }
@@ -221,7 +221,7 @@ static int pgdir_walk(Pde *pgdir, u_long va, int create, Pte **ppte) {
 	if (!(*pgdir_entryp & PTE_V)) { // PTE_V: page valid bit, if this page is not valid
 		if (create) {
 			int return_result = page_alloc(&pp);
-			if (!return_result) return return_result;
+			if (return_result != 0) return return_result;
 			pp->pp_ref = 1;
 			*pgdir_entryp = page2pa(pp) | PTE_C_CACHEABLE | PTE_V; // 'page2pa' translate page to physical addr (<<12), and the lower 12 bits is reserved for valid bits
 		} else {
@@ -234,7 +234,7 @@ static int pgdir_walk(Pde *pgdir, u_long va, int create, Pte **ppte) {
 	/* Exercise 2.6: Your code here. (3/3) */
 
 	// *pgdir_entryp is valid, PTE_ADDR translates it into an addr without valid bits, then into kenel virtual addr to get page table entry
-	*ppte = (Pte *)(KADDR(PTE_ADDR(*pgdir_entryp)) + PTX(va)); // page table base + offset
+	*ppte = (Pte *)(KADDR(PTE_ADDR(*pgdir_entryp))) + PTX(va); // page table base + offset
 
 	return 0;
 }
@@ -255,11 +255,11 @@ int page_insert(Pde *pgdir, u_int asid, struct Page *pp, u_long va, u_int perm) 
 	Pte *pte;
 
 	/* Step 1: Get corresponding page table entry. */
-	pgdir_walk(pgdir, va, 0, &pte);
+	pgdir_walk(pgdir, va, 0, &pte); // check if 'va' has already mapped to a entry
 
 	if (pte && (*pte & PTE_V)) {
-		if (pa2page(*pte) != pp) {
-			page_remove(pgdir, asid, va);
+		if (pa2page(*pte) != pp) { // if the page 'va' currently points to is not equivelant to 'pp'
+			page_remove(pgdir, asid, va); // replace the page 'va' points to using 'pp'
 		} else {
 			tlb_invalidate(asid, va);
 			*pte = page2pa(pp) | perm | PTE_C_CACHEABLE | PTE_V;
@@ -270,13 +270,21 @@ int page_insert(Pde *pgdir, u_int asid, struct Page *pp, u_long va, u_int perm) 
 	/* Step 2: Flush TLB with 'tlb_invalidate'. */
 	/* Exercise 2.7: Your code here. (1/3) */
 
+	tlb_invalidate(asid, va);
+
 	/* Step 3: Re-get or create the page table entry. */
 	/* If failed to create, return the error. */
 	/* Exercise 2.7: Your code here. (2/3) */
 
+	int result = pgdir_walk(pgdir, va, 1, &pte);
+	if (result != 0) { return -E_NO_MEM; }
+
 	/* Step 4: Insert the page to the page table entry with 'perm | PTE_C_CACHEABLE | PTE_V'
 	 * and increase its 'pp_ref'. */
 	/* Exercise 2.7: Your code here. (3/3) */
+
+	*pte = page2pa(pp) | perm | PTE_C_CACHEABLE | PTE_V;
+	pp->pp_ref++;
 
 	return 0;
 }
