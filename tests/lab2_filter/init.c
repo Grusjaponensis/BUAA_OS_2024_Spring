@@ -6,6 +6,7 @@ void test_page_filter() {
 	struct Page *p;
 	assert(page_alloc(&p) == 0);
 	Pde *pgdir = (Pde *)page2kva(p);
+	printk("%x\n", pgdir);
 	u_int va[6] = {UTEXT,
 		       UTEXT + PAGE_SIZE,
 		       UTEXT + 1024 * PAGE_SIZE,
