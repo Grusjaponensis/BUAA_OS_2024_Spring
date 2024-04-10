@@ -354,35 +354,44 @@ void page_remove(Pde *pgdir, u_int asid, u_long va) {
 /* End of Key Code "page_remove" */
 
 u_int page_filter(Pde *pgdir, u_long va_lower_limit, u_long va_upper_limit, u_int num) {
-	Pte *pte;
-	Pde *pde;
 	int result = 0;
+	// version 1
 	struct Page *pp;
-	u_long addr;
-	for (int i = 0; i < 1024; i++) {
-		pde = pgdir + i;
-		if (!(*pde & PTE_V)) {
+	Pte *pte;
+	for (u_long addr = va_lower_limit; addr < va_upper_limit; addr += PAGE_SIZE) {
+		pp = page_lookup(pgdir, addr, &pte);
+		if (pp == NULL) {
 			continue;
 		}
-		for (int j = 0; j < 1024; j++) {
-			pte = (Pte *)(KADDR(PTE_ADDR(*pde))) + j;
-			addr = (u_long)pte;
-			if (((*pte) & PTE_V) != 0) {
-				pp = pa2page(*pte);
-				//printk("resultaddr: %x\n", KADDR(PTE_ADDR(*pde)) + j);
-				//printk("lower: %x\n", va_lower_limit);
-				//printk("higer: %x\n", va_upper_limit);
-				//printk("another: %x\n", (PTE_ADDR(*pde) + j) >> 12);
-				//printk("another2: %x\n", page2kva(pp));
-				if (pp->pp_ref >= num) {
-					result++;
-				}
+		if ((*pte & PTE_V) != 0) {
+			if (pp->pp_ref >= num) {
+				result++;
 			}
 		}
 	}
 	return result;
-}
 
+	// version 2: use i << 22 + j << 12 as virtual addr
+
+	// Pde *pde;
+	// Pte *pte;
+	// u_long temp;
+	// for (int i = 0; i < 1024; i++) {
+	// 	pde = pgdir + i;
+	// 	for (int j = 0; j < 1024; j++) {
+	// 		pte = (Pte*)(KADDR(PTE_ADDR(*pde))) + j;
+	// 		if ((*pte & PTE_V) != 0) { // valid
+	// 			pp = pa2page(*pte);
+	// 			temp = (i << 22) + (j << 12);
+	// 			if (temp < va_upper_limit && temp >= va_lower_limit && pp->pp_ref >= num) {
+	// 				result++;
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// return result; 
+	
+}
 
 void physical_memory_manage_check(void) {
 	struct Page *pp, *pp0, *pp1, *pp2;
