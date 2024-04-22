@@ -43,7 +43,6 @@ void schedule(int yield) {
 		}
 		panic_on(TAILQ_EMPTY(&env_sched_list));
 		e = TAILQ_FIRST(&env_sched_list);
-		// TAILQ_REMOVE(&env_sched_list, e, env_sched_link);
 		count = e->env_pri;
 	}
 	count--;

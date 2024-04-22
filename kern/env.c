@@ -157,7 +157,7 @@ void env_init(void) {
 	/* Exercise 3.1: Your code here. (2/2) */
 
 	for (i = NENV - 1; i >= 0; i--) {
-		(&envs[i])->env_status = ENV_FREE;
+		envs[i].env_status = ENV_FREE;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
 
@@ -259,8 +259,9 @@ int env_alloc(struct Env **new, u_int parent_id) {
 	/* Exercise 3.4: Your code here. (3/4) */
 	e->env_id = mkenvid(e);
 	if ((r = asid_alloc(&e->env_asid)) < 0) {
-		return r;
+		return -E_NO_FREE_ENV;
 	}
+	e->env_parent_id = parent_id;
 	/* Step 4: Initialize the sp and 'cp0_status' in 'e->env_tf'.
 	 *   Set the EXL bit to ensure that the processor remains in kernel mode during context
 	 * recovery. Additionally, set UM to 1 so that when ERET unsets EXL, the processor
