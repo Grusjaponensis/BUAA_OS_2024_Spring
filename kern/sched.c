@@ -17,7 +17,6 @@
 void schedule(int yield) {
 	static int count = 0; // remaining time slices of current env
 	struct Env *e = curenv;
-	static int clock_ir = 0;
 	u_int ct = 0;
 	/* We always decrease the 'count' by 1.
 	 *
