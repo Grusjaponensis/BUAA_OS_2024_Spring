@@ -53,6 +53,7 @@ static void asid_free(u_int i) {
 	asid_bitmap[index] &= ~(1 << inner);
 }
 
+
 /* Overview:
  *   Map [va, va+size) of virtual address space to physical [pa, pa+size) in the 'pgdir'. Use
  *   permission bits 'perm | PTE_V' for the entries.
@@ -580,4 +581,14 @@ void envid2env_check() {
 	re = envid2env(pe2->env_id, &pe, 1);
 	assert(re == -E_BAD_ENV);
 	printk("envid2env() work well!\n");
+}
+
+void env_stat(struct Env *e, u_int *pri, u_int *scheds, u_int *runs, u_int *clocks) {
+	static u_int clock = 0;
+
+	*pri = e->env_pri;
+	*scheds = e->env_runs;
+	*runs = e->clock_ir;
+	clock = clock + e->env_tf.cp0_count;
+	*clocks = clock;
 }
