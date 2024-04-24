@@ -18,6 +18,7 @@ void schedule(int yield) {
 	static int count = 0; // remaining time slices of current env
 	struct Env *e = curenv;
 	static int clock_ir = 0;
+	u_int ct = 0;
 	/* We always decrease the 'count' by 1.
 	 *
 	 * If 'yield' is set, or 'count' has been decreased to 0, or 'e' (previous 'curenv') is
@@ -35,16 +36,23 @@ void schedule(int yield) {
 	 *   'TAILQ_FIRST', 'TAILQ_REMOVE', 'TAILQ_INSERT_TAIL'
 	 */
 	/* Exercise 3.12: Your code here. */
-	// printk("count: %lu\n", ((struct Trapframe *)KSTACKTOP - 1)->cp0_count);
-	int ct = ((struct Trapframe *)KSTACKTOP - 1)->cp0_count; 
+	if (curenv == NULL) {
+		ct = 0;
+	} else {
+		ct = ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
+		curenv->env_all += ct;
+	}
+	// printk("count: %lu\n", ct);
+	// int ct = ((struct Trapframe *)KSTACKTOP - 1)->cp0_count; 
 	if (yield || count == 0 || e == NULL || e->env_status != ENV_RUNNABLE) {
 		// when yield or reach the limits of time slice, handle if e is still 'runnable'
+		// if (e) e->env_all += ct;
 		if (e && e->env_status == ENV_RUNNABLE) {
 			TAILQ_REMOVE(&env_sched_list, e, env_sched_link);
-			TAILQ_INSERT_TAIL(&env_sched_list, e, env_sched_link);
-			if (ct >= 0) e->env_all += ct; 
+			TAILQ_INSERT_TAIL(&env_sched_list, e, env_sched_link); 
 		}
 		// e->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
+		// e->env_all += ct; stuck!!!
 		panic_on(TAILQ_EMPTY(&env_sched_list));
 		e = TAILQ_FIRST(&env_sched_list);
 		count = e->env_pri;
