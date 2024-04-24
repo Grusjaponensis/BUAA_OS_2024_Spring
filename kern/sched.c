@@ -36,30 +36,25 @@ void schedule(int yield) {
 	 *   'TAILQ_FIRST', 'TAILQ_REMOVE', 'TAILQ_INSERT_TAIL'
 	 */
 	/* Exercise 3.12: Your code here. */
+	// use "make test lab=3_stat && make run"
 	if (curenv == NULL) {
 		ct = 0;
 	} else {
 		ct = ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
 		curenv->env_all += ct;
 	}
-	// printk("count: %lu\n", ct);
-	// int ct = ((struct Trapframe *)KSTACKTOP - 1)->cp0_count; 
 	if (yield || count == 0 || e == NULL || e->env_status != ENV_RUNNABLE) {
 		// when yield or reach the limits of time slice, handle if e is still 'runnable'
-		// if (e) e->env_all += ct;
 		if (e && e->env_status == ENV_RUNNABLE) {
 			TAILQ_REMOVE(&env_sched_list, e, env_sched_link);
 			TAILQ_INSERT_TAIL(&env_sched_list, e, env_sched_link); 
 		}
-		// e->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
-		// e->env_all += ct; stuck!!!
 		panic_on(TAILQ_EMPTY(&env_sched_list));
 		e = TAILQ_FIRST(&env_sched_list);
 		count = e->env_pri;
 		e->env_runs++;
 	}
 	count--;
-	// e->clock_ir = e->env_pri - count;
 	e->clock_ir++;
 	env_run(e);
 }

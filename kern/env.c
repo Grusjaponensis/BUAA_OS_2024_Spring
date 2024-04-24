@@ -477,7 +477,6 @@ void env_run(struct Env *e) {
 	 */
 	if (curenv) {
 		curenv->env_tf = *((struct Trapframe *)KSTACKTOP - 1);
-		// curenv->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
 	}
 	/* Step 2: Change 'curenv' to 'e'. */
 	curenv = e;
@@ -586,12 +585,8 @@ void envid2env_check() {
 }
 
 void env_stat(struct Env *e, u_int *pri, u_int *scheds, u_int *runs, u_int *clocks) {
-	static u_int clock = 0;
-
 	*pri = e->env_pri;
 	*scheds = e->env_runs;
 	*runs = e->clock_ir - 1;
-	// e->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
-	
 	*clocks = e->env_all;
 }

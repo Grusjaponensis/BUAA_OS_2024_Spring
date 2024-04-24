@@ -32,7 +32,7 @@
 	sw      k0, TF_LO(sp)
 
 	mfc0	k0, CP0_COUNT
-	sw 	k0, TF_COUNT(sp)
+	sw 		k0, TF_COUNT(sp)
 
 	sw      $0, TF_REG0(sp)
 	sw      $1, TF_REG1(sp)
