@@ -41,6 +41,8 @@ struct Env {
 	u_int env_runs; // number of times we've been env_run'ed
 
 	u_int clock_ir;
+	u_int env_run_first;
+	u_int env_all;
 };
 
 LIST_HEAD(Env_list, Env);

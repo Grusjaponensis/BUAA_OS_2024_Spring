@@ -263,6 +263,8 @@ int env_alloc(struct Env **new, u_int parent_id) {
 		return -E_NO_FREE_ENV;
 	}
 	e->env_parent_id = parent_id;
+	e->clock_ir = 0;
+	e->env_all = 0;
 	/* Step 4: Initialize the sp and 'cp0_status' in 'e->env_tf'.
 	 *   Set the EXL bit to ensure that the processor remains in kernel mode during context
 	 * recovery. Additionally, set UM to 1 so that when ERET unsets EXL, the processor
@@ -475,11 +477,11 @@ void env_run(struct Env *e) {
 	 */
 	if (curenv) {
 		curenv->env_tf = *((struct Trapframe *)KSTACKTOP - 1);
+		// curenv->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
 	}
-
 	/* Step 2: Change 'curenv' to 'e'. */
 	curenv = e;
-	curenv->env_runs++; // lab6
+	// curenv->env_runs++; // lab6
 
 	/* Step 3: Change 'cur_pgdir' to 'curenv->env_pgdir', switching to its address space. */
 	/* Exercise 3.8: Your code here. (1/2) */
@@ -588,7 +590,8 @@ void env_stat(struct Env *e, u_int *pri, u_int *scheds, u_int *runs, u_int *cloc
 
 	*pri = e->env_pri;
 	*scheds = e->env_runs;
-	*runs = e->clock_ir;
-	clock = clock + e->env_tf.cp0_count;
-	*clocks = clock;
+	*runs = e->clock_ir - 1;
+	// e->env_all += ((struct Trapframe *)KSTACKTOP - 1)->cp0_count;
+	
+	*clocks = e->env_all;
 }
