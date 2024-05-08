@@ -1,6 +1,6 @@
 #ifndef _ENV_H_
 #define _ENV_H_
-
+#include <msg.h>
 #include <mmu.h>
 #include <queue.h>
 #include <trap.h>
@@ -36,6 +36,11 @@ struct Env {
 
 	// Lab 4 fault handling
 	u_int env_user_tlb_mod_entry; // userspace TLB Mod handler
+
+	struct Msg_list env_msg_list;
+	u_int env_msg_value;          // 用于向用户态返回 msg_value
+	u_int env_msg_from;           // 用于向用户态返回 msg_from
+	u_int env_msg_perm;           // 用于向用户态返回 msg_perm
 
 	// Lab 6 scheduler counts
 	u_int env_runs; // number of times we've been env_run'ed
