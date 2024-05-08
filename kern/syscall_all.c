@@ -23,11 +23,11 @@ void sys_sem_open(int sem_id, int n) {
 
 int sys_sem_wait(int sem_id) {
 	// Lab 4-1-Exam: Your code here. (7/9)
-	if (sem_id < 1 || sem_id > 10 || sems_valid[sem_id] == 0 || sems[sem_id] > 30) { // should I check the value of the sem?
+	if (sem_id < 1 || sem_id > 10 || sems_valid[sem_id] == 0) { // should I check the value of the sem?
 		return -E_SEM_NOT_OPEN;
 	}
-	if (sems_valid[sem_id] == 1 && sems[sem_id] == 0) {
-		return 1;
+	if (sems[sem_id] == 0) {
+		return 1; // wait
 	}
 	sems[sem_id]--;
 	return 0;
@@ -36,15 +36,16 @@ int sys_sem_wait(int sem_id) {
 int sys_sem_post(int sem_id) {
 	// Lab 4-1-Exam: Your code here. (8/9)
 	if (sem_id < 1 || sem_id > 10 || sems_valid[sem_id] == 0) { return -E_SEM_NOT_OPEN; }
-	if (sems[sem_id] > 30) { return -E_SEM_NOT_OPEN; }
+	// if (sems[sem_id] > 30) { return -E_SEM_NOT_OPEN; }
 	sems[sem_id]++;
 	return 0;
 }
 
 int sys_sem_kill(int sem_id) {
 	// Lab 4-1-Exam: Your code here. (9/9)
-	if (sem_id < 1 || sem_id > 10 || sems_valid[sem_id] == 0 || sems[sem_id] > 30) { return -E_SEM_NOT_OPEN; }
+	if (sem_id < 1 || sem_id > 10 || sems_valid[sem_id] == 0) { return -E_SEM_NOT_OPEN; }
 	sems_valid[sem_id] = 0;
+	// sems[sem_id] = 0;
 	return 0;
 }
 
