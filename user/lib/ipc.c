@@ -4,6 +4,31 @@
 #include <lib.h>
 #include <mmu.h>
 
+void sem_open(int sem_id, int n) {
+	syscall_sem_open(sem_id, n);
+}
+
+int sem_wait(int sem_id) {
+	int r;
+	// Lab 4-1-Exam: Your code here. (1/9)
+	// Implement process blocking
+	while ((r = syscall_sem_wait(sem_id)) == 0) {
+	}
+	if (r == 1) {
+		syscall_yield();
+		return 0;
+	}
+	return r;
+}
+
+int sem_post(int sem_id) {
+	return syscall_sem_post(sem_id);
+}
+
+int sem_kill(int sem_id) {
+	return syscall_sem_kill(sem_id);
+}
+
 // Send val to whom.  This function keeps trying until
 // it succeeds.  It should panic() on any error other than
 // -E_IPC_NOT_RECV.
