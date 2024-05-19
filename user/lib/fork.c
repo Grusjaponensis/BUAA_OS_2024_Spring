@@ -31,17 +31,17 @@ static void __attribute__((noreturn)) cow_entry(struct Trapframe *tf) {
 	/* Step 3: Allocate a new page at 'UCOW'. */
 	/* Exercise 4.13: Your code here. (3/6) */
 	// notice we cannot use 'page_alloc' or 'page_lookup' for this is USER SPACE!
-	syscall_mem_alloc(0, UCOW, PTE_D);
+	syscall_mem_alloc(0, (void *)UCOW, PTE_D);
 	/* Step 4: Copy the content of the faulting page at 'va' to 'UCOW'. */
 	/* Hint: 'va' may not be aligned to a page! */
 	/* Exercise 4.13: Your code here. (4/6) */
-	memcpy(UCOW, ROUNDDOWN(va, PAGE_SIZE), PAGE_SIZE);
+	memcpy((void *)UCOW, (void *)ROUNDDOWN(va, PAGE_SIZE), PAGE_SIZE);
 	// Step 5: Map the page at 'UCOW' to 'va' with the new 'perm'.
 	/* Exercise 4.13: Your code here. (5/6) */
-	syscall_mem_map(0, UCOW, 0, va, perm);
+	syscall_mem_map(0, (void *)UCOW, 0, (void *)va, perm);
 	// Step 6: Unmap the page at 'UCOW'.
 	/* Exercise 4.13: Your code here. (6/6) */
-	syscall_mem_unmap(0, UCOW);
+	syscall_mem_unmap(0, (void *)UCOW);
 	// Step 7: Return to the faulting routine.
 	int r = syscall_set_trapframe(0, tf);
 	user_panic("syscall_set_trapframe returned %d", r);
@@ -86,10 +86,10 @@ static void duppage(u_int envid, u_int vpn) {
 	/* Exercise 4.10: Your code here. (2/2) */
 	if ((perm & PTE_D) && (~perm & PTE_LIBRARY) && (~perm & PTE_COW)) {
 		perm = (perm | PTE_COW) & ~PTE_D;
-		syscall_mem_map(0, addr, envid, addr, perm); 	// map to child page
-		syscall_mem_map(0, addr, 0, addr, perm);	// map to parent page
+		syscall_mem_map(0, (void *)addr, envid, (void *)addr, perm); 	// map to child page
+		syscall_mem_map(0, (void *)addr, 0, (void *)addr, perm);	// map to parent page
 	} else {
-		syscall_mem_map(0, addr, envid, addr, perm);
+		syscall_mem_map(0, (void *)addr, envid, (void *)addr, perm);
 	}
 }
 

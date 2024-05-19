@@ -2,9 +2,8 @@
 #define _DBGK_H_
 
 #include <printk.h>
-#define DEBUGK
 
-#ifdef DEBUGK
+#ifndef DEBUGK
     #define DEBUGK(fmt, ...) do { printk("debugk::" fmt, ##__VA_ARGS__); } while (0)
 #else
     #define DEBUGK(...)
