@@ -107,7 +107,7 @@ static void duppage(u_int envid, u_int vpn) {
 int fork(void) {
 	u_int child;
 	u_int i;
-
+	//debugf("Hello, worldfork!!!!\n");
 	/* Step 1: Set our TLB Mod user exception entry to 'cow_entry' if not done yet. */
 	if (env->env_user_tlb_mod_entry != (u_int)cow_entry) {
 		try(syscall_set_tlb_mod_entry(0, cow_entry));
@@ -116,12 +116,16 @@ int fork(void) {
 	/* Step 2: Create a child env that's not ready to be scheduled. */
 	// Hint: 'env' should always point to the current env itself, so we should fix it to the
 	// correct value.
+	// debugf("Hello, world!\n");
 	child = syscall_exofork();
+	// debugf("child: %d\n", child);
+	// straced = 0;
 	if (child == 0) {
+		straced = 0;
 		env = envs + ENVX(syscall_getenvid());
 		return 0;
 	}
-
+	
 	/* Step 3: Map all mapped pages below 'USTACKTOP' into the child's address space. */
 	// Hint: You should use 'duppage'.
 	/* Exercise 4.15: Your code here. (1/2) */

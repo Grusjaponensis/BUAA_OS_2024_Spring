@@ -236,7 +236,7 @@ int sys_mem_unmap(u_int envid, u_int va) {
  */
 int sys_exofork(void) {
 	struct Env *e;
-
+	// printk("exofork!!!\n");
 	/* Step 1: Allocate a new env using 'env_alloc'. */
 	/* Exercise 4.9: Your code here. (1/4) */
 	try(env_alloc(&e, curenv->env_id));
@@ -282,13 +282,18 @@ int sys_set_env_status(u_int envid, u_int status) {
 	try(envid2env(envid, &env, 1));
 	/* Step 3: Update 'env_sched_list' if the 'env_status' of 'env' is being changed. */
 	/* Exercise 4.14: Your code here. (3/3) */
-	if (env->env_status != status) {
-		if (status == ENV_RUNNABLE) {
-			TAILQ_INSERT_TAIL(&env_sched_list, env, env_sched_link);
-		} else {
-			TAILQ_REMOVE(&env_sched_list, env, env_sched_link);
-		}
+	if (status == ENV_RUNNABLE && env->env_status != ENV_RUNNABLE) {
+    		TAILQ_INSERT_TAIL(&env_sched_list, env, env_sched_link);
+	} else if (status == ENV_NOT_RUNNABLE && env->env_status != ENV_NOT_RUNNABLE) {
+   		 TAILQ_REMOVE(&env_sched_list, env, env_sched_link);
+   		 if(env == curenv) {
+       			env->env_status = status;
+			// printk("Hello,world\n");
+        		schedule(1);
+       			// no return
+   		 }
 	}
+	// printk("Hello, world!\n");
 	/* Step 4: Set the 'env_status' of 'env'. */
 	env->env_status = status;
 	return 0;

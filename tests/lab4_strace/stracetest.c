@@ -58,8 +58,11 @@ void print_answer() {
 }
 
 int main() {
+	debugf("begin\n");
 	if (fork()) {
+		debugf("after fork before str_recv\n");
 		strace_recv();
+		debugf("after str_recv\n");
 		int child_ans[3] = {0x1001, 0x1001, 0x1001};
 		int sysno_ans[3] = {2, 1, 4};
 		print_answer();

@@ -28,7 +28,7 @@ void libmain(int argc, char **argv) {
 	// set env to point at our env structure in envs[].
 	env = &envs[ENVX(syscall_getenvid())];
 	straced = 0;
-
+	// debugf("Hello, world!\n");
 	// call user main routine
 	main(argc, argv);
 
