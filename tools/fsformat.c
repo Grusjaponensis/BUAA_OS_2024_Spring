@@ -218,8 +218,6 @@ struct File *create_file(struct File *dirf) {
 		if (i < NDIRECT) {
 			bno = dirf->f_direct[i];
 		} else {
-			// 111
-			bno = dirf->f_indirect + (i - NDIRECT);
 			bno = ((uint32_t*)disk[dirf->f_indirect].data)[i];
 		}
 
