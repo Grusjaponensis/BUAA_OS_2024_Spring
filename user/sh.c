@@ -115,7 +115,7 @@ int parsecmd(char **argv, int *rightpipe) {
 			// utilize 'debugf' to print relevant messages,
 			// and subsequently terminate the process using 'exit'.
 			/* Exercise 6.5: Your code here. (2/3) */
-			if ((r = open(t, O_WRONLY)) < 0) {
+			if ((fd = open(t, O_WRONLY)) < 0) {
 				debugf("ERROR: Failed to open %s at %s, %s\n", __FILE__, __LINE__);
 				exit();
 			}
