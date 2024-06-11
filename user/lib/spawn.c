@@ -123,10 +123,7 @@ int spawn(char *prog, char **argv) {
 	u_char elfbuf[512];
 	/* Exercise 6.4: Your code here. (1/6) */
 	if ((r = readn(fd, elfbuf, sizeof(Elf32_Ehdr))) != sizeof(Elf32_Ehdr)) {
-		if (r >= 0) {
-			r = -E_NOT_EXEC;
-		}
-		goto err;
+        goto err;
 	}
 	const Elf32_Ehdr *ehdr = elf_from(elfbuf, sizeof(Elf32_Ehdr));
 	if (!ehdr) {
@@ -159,15 +156,10 @@ int spawn(char *prog, char **argv) {
 		// 'goto err1' on failure.
 		// You may want to use 'seek' and 'readn'.
 		/* Exercise 6.4: Your code here. (4/6) */
-		if ((r = seek(fd, ph_off)) < 0) {
-			goto err1;
-		}
-		if ((r = readn(fd, elfbuf, ehdr->e_phentsize)) != ehdr->e_phentsize) {
-			if (r >= 0) {
-				r = -E_NOT_EXEC;
-			}
-			goto err1;
-		}
+		if ((r = seek(fd, ph_off)) < 0 || 
+		    (r = readn(fd, elfbuf, ehdr->e_phentsize)) < 0) {
+            goto err1;
+        }
 
 		Elf32_Phdr *ph = (Elf32_Phdr *)elfbuf;
 		if (ph->p_type == PT_LOAD) {
@@ -183,7 +175,7 @@ int spawn(char *prog, char **argv) {
 			// Use 'spawn_mapper' as the callback, and '&child' as its data.
 			// 'goto err1' if that fails.
 			/* Exercise 6.4: Your code here. (6/6) */
-			if ((r = elf_load_seg(ph, bin, spawn_mapper, &child)) != 0) {
+			if ((r = elf_load_seg(ph, bin, spawn_mapper, &child)) < 0) {
 				goto err1;
 			}
 		}

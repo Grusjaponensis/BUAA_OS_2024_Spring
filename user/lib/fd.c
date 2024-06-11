@@ -191,8 +191,9 @@ int read(int fdnum, void *buf, u_int n) {
 	struct Dev *dev;
 	struct Fd *fd;
 	/* Exercise 5.10: Your code here. (1/4) */
-	try(fd_lookup(fdnum, &fd));
-	try(dev_lookup(fd->fd_dev_id, &dev));
+	if ((r = fd_lookup(fdnum, &fd)) < 0 || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0) {
+		return r;
+	}
 
 	// Step 2: Check the open mode in 'fd'.
 	// Return -E_INVAL if the file is opened for writing only (O_WRONLY).

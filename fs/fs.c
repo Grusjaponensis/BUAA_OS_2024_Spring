@@ -144,7 +144,7 @@ int map_block(u_int blockno) {
 	// Step 2: Alloc a page in permission 'PTE_D' via syscall.
 	// Hint: Use 'disk_addr' for the virtual address.
 	/* Exercise 5.7: Your code here. (2/5) */
-	try(syscall_mem_alloc(0, disk_addr(blockno), PTE_D));
+	try(syscall_mem_alloc(env->env_id, disk_addr(blockno), PTE_D));
 	return 0;
 }
 
@@ -164,7 +164,7 @@ void unmap_block(u_int blockno) {
 	}
 	// Step 3: Unmap the virtual address via syscall.
 	/* Exercise 5.7: Your code here. (5/5) */
-	syscall_mem_unmap(0, va);
+	syscall_mem_unmap(env->env_id, disk_addr(blockno));
 	user_assert(!block_is_mapped(blockno));
 }
 
@@ -198,14 +198,12 @@ void free_block(u_int blockno) {
 	// Step 2: Set the flag bit of 'blockno' in 'bitmap'.
 	// Hint: Use bit operations to update the bitmap, such as b[n / W] |= 1 << (n % W).
 	/* Exercise 5.4: Your code here. (2/2) */
-	if (!block_is_free(blockno)) {
-		/**
-		 * Explain
-		 * blockno / 32: type of int is 32 bits, so blockno's index in bitmap is blockno / 32
-		 * then use left shift to find the specified bit in index's 32 bit
-		 */ 
-		bitmap[blockno / 32] |= (1 << (blockno % 32));
-	}
+	/**
+	 * Explain
+	 * blockno / 32: type of int is 32 bits, so blockno's index in bitmap is blockno / 32
+	 * then use left shift to find the specified bit in index's 32 bit
+	 */ 
+	bitmap[blockno / 32] |= (1 << (blockno % 32));
 }
 
 // Overview:
