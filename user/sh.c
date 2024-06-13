@@ -65,7 +65,6 @@ int gettoken(char *s, char **p1) {
 }
 
 #define MAXARGS 128
-// static char args[MAXARGS][1024] = {"ls", "touch", "mkdir", "rm", "cat", "true", "false", "echo", "halt"};
 
 int parsecmd(char **argv, int *rightpipe) {
 	int argc = 0;
@@ -163,7 +162,7 @@ int parsecmd(char **argv, int *rightpipe) {
 	return argc;
 }
 
-void inline handle_suffix(char *s) {
+void handle_suffix(char *s) {
 	int len = strlen(s);
 	if (len >= 2 && s[len - 2] == '.' && s[len - 1] == 'b') {
 		return;
