@@ -182,8 +182,8 @@ void runcmd(char *s) {
 		return;
 	}
 	argv[argc] = 0;
-	// debugf("---executing: %s\n", argv[0]);
 	handle_suffix(argv[0]);
+	debugf("---executing: %s\n", argv[0]);
 	int child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
