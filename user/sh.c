@@ -164,7 +164,7 @@ int parsecmd(char **argv, int *rightpipe) {
 }
 
 void inline handle_suffix(char *s) {
-	u_int32_t len = strlen(s);
+	int len = strlen(s);
 	if (len >= 2 && s[len - 2] == '.' && s[len - 1] == 'b') {
 		return;
 	}
