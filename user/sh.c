@@ -64,6 +64,7 @@ int gettoken(char *s, char **p1) {
 }
 
 #define MAXARGS 128
+// static char args[MAXARGS][1024] = {"ls", "touch", "mkdir", "rm", "cat", "true", "false", "echo", "halt"};
 
 int parsecmd(char **argv, int *rightpipe) {
 	int argc = 0;
@@ -171,7 +172,7 @@ void runcmd(char *s) {
 		return;
 	}
 	argv[argc] = 0;
-
+	debugf("---executing: %s\n", argv[0]);
 	int child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
