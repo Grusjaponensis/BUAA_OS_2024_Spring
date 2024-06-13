@@ -50,16 +50,16 @@ void mips_init(u_int argc, char **argv, char **penv, u_int ram_low_size) {
 	env_init();
 
 	// lab3:
-	ENV_CREATE_PRIORITY(user_bare_loop, 1);
-	ENV_CREATE_PRIORITY(user_bare_loop, 2);
+	// ENV_CREATE_PRIORITY(user_bare_loop, 1);
+	// ENV_CREATE_PRIORITY(user_bare_loop, 2);
 
 	// lab4:
-	ENV_CREATE(user_tltest);
-	ENV_CREATE(user_fktest);
-	ENV_CREATE(user_pingpong);
+	// ENV_CREATE(user_tltest);
+	// ENV_CREATE(user_fktest);
+	// ENV_CREATE(user_pingpong);
 
 	// lab6:
-	// ENV_CREATE(user_icode);  // This must be the first env!
+	ENV_CREATE(user_icode);  // This must be the first env!
 
 	// lab5:
 	// ENV_CREATE(user_fstest);
@@ -68,6 +68,7 @@ void mips_init(u_int argc, char **argv, char **penv, u_int ram_low_size) {
 
 	// lab3:
 	schedule(0);
+	panic("init.c:\tend of mips_init() reached!");
 }
 
 #endif
