@@ -167,9 +167,12 @@ void handle_suffix(char *s) {
 	if (len >= 2 && s[len - 2] == '.' && s[len - 1] == 'b') {
 		return;
 	}
-	s[len] = '.';
-	s[len + 1] = 'b';
-	s[len + 2] = 0;
+	char copy[10] = {0};
+	strcpy(copy, s);
+	copy[len] = '.';
+	copy[len + 1] = 'b';
+	copy[len + 2] = 0;
+	s = copy;
 }
 
 void runcmd(char *s) {
