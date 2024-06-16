@@ -130,14 +130,15 @@ int parsecmd(char **argv, int *rightpipe) {
 	return argc;
 }
 
-void runcmd(char *s) {
+int runcmd(char *s) {
 	gettoken(s, 0);
 
 	char *argv[MAXARGS];
 	int rightpipe = 0;
 	int argc = parsecmd(argv, &rightpipe);
+	int exit_status = -1;
 	if (argc == 0) {
-		return;
+		return 0;
 	}
 	argv[argc] = 0;
 	int len = strlen(argv[0]);
@@ -149,18 +150,39 @@ void runcmd(char *s) {
 		s[len + 2] = 0;
 		argv[0] = s;
 	}
-	for (int i = 0; i < argc; i++) {
-		debugf("arg %d: %s\n", i, argv[i]);
-	}
+	// for (int i = 0; i < argc; i++) {
+	// 	debugf("arg %d: %s\n", i, argv[i]);
+	// }
 	int child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
+		exit_status = ipc_recv(0, 0, 0);
+		// debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
 		wait(child);
 	} else {
 		debugf("spawn %s: %d\n", argv[0], child);
 	}
 	if (rightpipe) {
 		wait(rightpipe);
+	}
+	return exit_status;
+}
+
+void conditionally_run(char *s) {
+	char buf[1024];
+	int pos = 0;
+	int r;
+	int return_value = -1;
+	while (*s) {
+		if (*s == '&' && *(s + 1) == '&') {
+			// AND
+
+		} else if (*s == '|' && *(s + 1) == '|') {
+			// OR
+
+		} else {
+			buf[pos++] = *s++;
+		}
 	}
 	exit();
 }
@@ -246,6 +268,7 @@ int main(int argc, char **argv) {
 		if (echocmds) {
 			printf("# %s\n", buf);
 		}
+		// conditionally_run(buf);
 		if ((r = fork()) < 0) {
 			user_panic("fork: %d", r);
 		}
