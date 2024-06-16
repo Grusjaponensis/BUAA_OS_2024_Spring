@@ -34,6 +34,9 @@ ifeq ($(call lab-ge,6), true)
 			ls.b \
 			sh.b  \
 			cat.b \
+			false.b \
+			true.b \
+			sleep.b \
 			testpipe.b \
 			testpiperace.b \
 			testptelibrary.b \

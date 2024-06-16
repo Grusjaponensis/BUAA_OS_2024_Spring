@@ -86,11 +86,6 @@ int parsecmd(char **argv, int *rightpipe) {
 				debugf("syntax error: < not followed by word\n");
 				exit();
 			}
-			// Open 't' for reading, dup it onto fd 0, and then close the original fd.
-			// If the 'open' function encounters an error,
-			// utilize 'debugf' to print relevant messages,
-			// and subsequently terminate the process using 'exit'.
-			/* Exercise 6.5: Your code here. (1/3) */
 			fd = open(t, O_RDONLY);
 			if (fd < 0) {
 				debugf("open %s failed!\n", t);
@@ -98,19 +93,12 @@ int parsecmd(char **argv, int *rightpipe) {
 			}
 			dup(fd, 0);
 			close(fd);
-			// user_panic("< redirection not implemented");
 			break;
 		case '>':
 			if (gettoken(0, &t) != 'w') {
 				debugf("syntax error: > not followed by word\n");
 				exit();
 			}
-			// Open 't' for writing, create it if not exist and trunc it if exist, dup
-			// it onto fd 1, and then close the original fd.
-			// If the 'open' function encounters an error,
-			// utilize 'debugf' to print relevant messages,
-			// and subsequently terminate the process using 'exit'.
-			/* Exercise 6.5: Your code here. (2/3) */
 			fd = open(t, O_WRONLY);
 			if (fd < 0) {
 				debugf("open %s failed!\n", t);
@@ -118,27 +106,9 @@ int parsecmd(char **argv, int *rightpipe) {
 			}
 			dup(fd, 1);
 			close(fd);
-			// user_panic("> redirection not implemented");
-
 			break;
 		case '|':;
-			/*
-			 * First, allocate a pipe.
-			 * Then fork, set '*rightpipe' to the returned child envid or zero.
-			 * The child runs the right side of the pipe:
-			 * - dup the read end of the pipe onto 0
-			 * - close the read end of the pipe
-			 * - close the write end of the pipe
-			 * - and 'return parsecmd(argv, rightpipe)' again, to parse the rest of the
-			 *   command line.
-			 * The parent runs the left side of the pipe:
-			 * - dup the write end of the pipe onto 1
-			 * - close the write end of the pipe
-			 * - close the read end of the pipe
-			 * - and 'return argc', to execute the left of the pipeline.
-			 */
 			int p[2];
-			/* Exercise 6.5: Your code here. (3/3) */
 			pipe(p);
 			*rightpipe = fork();
 			if (*rightpipe == 0) {
@@ -152,8 +122,6 @@ int parsecmd(char **argv, int *rightpipe) {
 				close(p[0]);
 				return argc;
 			}
-			// user_panic("| not implemented");
-
 			break;
 		}
 	}
@@ -171,7 +139,15 @@ void runcmd(char *s) {
 		return;
 	}
 	argv[argc] = 0;
-
+	char temp[20] = {0};
+	int len = strlen(argv[0]);
+	if (len >= 2 && (argv[0][len - 2] != '.' || argv[0][len - 1] != 'b')) {
+		strcpy(temp, argv[0]);
+		temp[len] = '.';
+		temp[len + 1] = 'b';
+		temp[len + 2] = 0;
+		argv[0] = temp;
+	}
 	int child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
