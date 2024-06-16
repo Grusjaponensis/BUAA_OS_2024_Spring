@@ -68,6 +68,7 @@ void mips_init(u_int argc, char **argv, char **penv, u_int ram_low_size) {
 
 	// lab3:
 	schedule(0);
+	panic("init.c:\tend of mips_init() reached!");
 }
 
 #endif

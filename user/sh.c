@@ -3,6 +3,7 @@
 
 #define WHITESPACE " \t\r\n"
 #define SYMBOLS "<|>&;()"
+#define SUFFIX ".b"
 
 /* Overview:
  *   Parse the next token from the string at s.
@@ -139,14 +140,17 @@ void runcmd(char *s) {
 		return;
 	}
 	argv[argc] = 0;
-	char temp[20] = {0};
 	int len = strlen(argv[0]);
 	if (len >= 2 && (argv[0][len - 2] != '.' || argv[0][len - 1] != 'b')) {
-		strcpy(temp, argv[0]);
-		temp[len] = '.';
-		temp[len + 1] = 'b';
-		temp[len + 2] = 0;
-		argv[0] = temp;
+		char s[10] = {0};
+		strcpy(s, argv[0]);
+		s[len] = '.';
+		s[len + 1] = 'b';
+		s[len + 2] = 0;
+		argv[0] = s;
+	}
+	for (int i = 0; i < argc; i++) {
+		debugf("arg %d: %s\n", i, argv[i]);
 	}
 	int child = spawn(argv[0], argv);
 	close_all();
