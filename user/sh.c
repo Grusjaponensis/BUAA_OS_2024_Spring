@@ -4,6 +4,7 @@
 #define WHITESPACE " \t\r\n"
 #define SYMBOLS "<|>&;()#"
 
+// run condition
 #define NONE 0
 #define AND 1
 #define OR 2
@@ -162,7 +163,7 @@ int runcmd(char *s) {
 		debugf("arg %d: %s\n", i, argv[i]);
 	}
 	int child = spawn(argv[0], argv);
-	// close_all();
+	close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
 		debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
@@ -182,25 +183,29 @@ void conditionally_run(char *s) {
     int pos = 0;
     int return_value = 0;
     int previous_op = NONE;
+	int r;
 
     while (*s) {
-        if (*s == '&' && *(s + 1) == '&') {
-            // AND
+        if ((*s == '&' && *(s + 1) == '&') || 
+			(*s == '|' && *(s + 1) == '|')) {
+            // AND or OR
+			char temp = *s;
             s += 2;
             buf[pos] = '\0';
             if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-				return_value = runcmd(buf);
+				if ((r = fork()) < 0) {
+					user_panic("fork: %d", r);
+				}
+				if (r == 0) {
+					return_value = runcmd(buf);
+					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+					exit();
+				} else {
+					return_value = ipc_recv(0, 0, 0);
+					wait(r);
+				}
             }
-            previous_op = AND;
-            pos = 0;
-        } else if (*s == '|' && *(s + 1) == '|') {
-            // OR
-            s += 2;
-            buf[pos] = '\0';
-            if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-                return_value = runcmd(buf);
-            }
-            previous_op = OR;
+			previous_op = (temp == '&') ? AND : OR;
             pos = 0;
         } else {
             buf[pos++] = *s++;
@@ -211,7 +216,17 @@ void conditionally_run(char *s) {
     if (pos > 0) {
         buf[pos] = '\0';
         if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-			return_value = runcmd(buf);
+				if ((r = fork()) < 0) {
+					user_panic("fork: %d", r);
+				}
+				if (r == 0) {
+					return_value = runcmd(buf);
+					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+					exit();
+				} else {
+					return_value = ipc_recv(0, 0, 0);
+					wait(r);
+				}
         }
     }
 }
@@ -297,15 +312,16 @@ int main(int argc, char **argv) {
 		if (echocmds) {
 			printf("# %s\n", buf);
 		}
-		if ((r = fork()) < 0) {
-			user_panic("fork: %d", r);
-		}
-		if (r == 0) {
-			conditionally_run(buf);
-			exit();
-		} else {
-			wait(r);
-		}
+		conditionally_run(buf);
+		// if ((r = fork()) < 0) {
+		// 	user_panic("fork: %d", r);
+		// }
+		// if (r == 0) {
+		// 	conditionally_run(buf);
+		// 	exit();
+		// } else {
+		// 	wait(r);
+		// }
 	}
 	return 0;
 }
