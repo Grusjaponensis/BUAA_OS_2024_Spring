@@ -145,13 +145,13 @@ int runcmd(char *s) {
 	}
 	argv[argc] = 0;
 	int len = strlen(argv[0]);
+	char temp[10] = {0};
 	if (len >= 2 && (argv[0][len - 2] != '.' || argv[0][len - 1] != 'b')) {
-		char s[10] = {0};
-		strcpy(s, argv[0]);
-		s[len] = '.';
-		s[len + 1] = 'b';
-		s[len + 2] = 0;
-		argv[0] = s;
+		strcpy(temp, argv[0]);
+		temp[len] = '.';
+		temp[len + 1] = 'b';
+		temp[len + 2] = 0;
+		argv[0] = temp;
 	}
 	for (int i = 0; i < argc; i++) {
 		debugf("arg %d: %s\n", i, argv[i]);
@@ -183,7 +183,6 @@ void conditionally_run(char *s) {
             s += 2;
             buf[pos] = '\0';
             if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-                debugf("current buf: %s\n", buf);
 				return_value = runcmd(buf);
             }
             previous_op = AND;
@@ -193,7 +192,6 @@ void conditionally_run(char *s) {
             s += 2;
             buf[pos] = '\0';
             if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-				debugf("current buf: %s\n", buf);
                 return_value = runcmd(buf);
             }
             previous_op = OR;
@@ -207,7 +205,6 @@ void conditionally_run(char *s) {
     if (pos > 0) {
         buf[pos] = '\0';
         if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-            debugf("current buf: %s\n", buf);
 			return_value = runcmd(buf);
         }
     }

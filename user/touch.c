@@ -12,10 +12,11 @@ int main(int argc, char *argv[]) {
     int fd;
     if ((fd = open(argv[1], O_RDONLY)) >= 0) {
         close(fd);
-        return;
+        return 1;
     }
     if (create(argv[1], FTYPE_REG) < 0) {
-        user_panic("touch: cannot touch '%s': No such file or directory\n",argv[1]);
+        debugf("touch: cannot touch '%s': No such file or directory\n",argv[1]);
+        return 1;
     }
     return 0;
 }
