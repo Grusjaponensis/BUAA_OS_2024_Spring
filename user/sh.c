@@ -2,7 +2,7 @@
 #include <lib.h>
 
 #define WHITESPACE " \t\r\n"
-#define SYMBOLS "<|>&;()"
+#define SYMBOLS "<|>&;()#"
 
 #define NONE 0
 #define AND 1
@@ -76,60 +76,65 @@ int parsecmd(char **argv, int *rightpipe) {
 		int fd, r;
 		int c = gettoken(0, &t);
 		switch (c) {
-		case 0:
-			return argc;
-		case 'w':
-			if (argc >= MAXARGS) {
-				debugf("too many arguments\n");
-				exit();
-			}
-			argv[argc++] = t;
-			break;
-		case '<':
-			if (gettoken(0, &t) != 'w') {
-				debugf("syntax error: < not followed by word\n");
-				exit();
-			}
-			fd = open(t, O_RDONLY);
-			if (fd < 0) {
-				debugf("open %s failed!\n", t);
-				exit();
-			}
-			dup(fd, 0);
-			close(fd);
-			break;
-		case '>':
-			if (gettoken(0, &t) != 'w') {
-				debugf("syntax error: > not followed by word\n");
-				exit();
-			}
-			fd = open(t, O_WRONLY);
-			if (fd < 0) {
-				debugf("open %s failed!\n", t);
-				exit();
-			}
-			dup(fd, 1);
-			close(fd);
-			break;
-		case '|':;
-			int p[2];
-			pipe(p);
-			*rightpipe = fork();
-			if (*rightpipe == 0) {
-				dup(p[0], 0);
-				close(p[0]);
-				close(p[1]);
-				return parsecmd(argv, rightpipe);
-			} else if (*rightpipe > 0) {
-				dup(p[1], 1);
-				close(p[1]);
-				close(p[0]);
+			case '#':
+			case 0: {
 				return argc;
 			}
-			break;
+			case 'w': {
+				if (argc >= MAXARGS) {
+					debugf("too many arguments\n");
+					exit();
+				}
+				argv[argc++] = t;
+				break;
+			}
+			case '<': {
+				if (gettoken(0, &t) != 'w') {
+					debugf("syntax error: < not followed by word\n");
+					exit();
+				}
+				fd = open(t, O_RDONLY);
+				if (fd < 0) {
+					debugf("open %s failed!\n", t);
+					exit();
+				}
+				dup(fd, 0);
+				close(fd);
+				break;
+			}
+			case '>': {
+				if (gettoken(0, &t) != 'w') {
+					debugf("syntax error: > not followed by word\n");
+					exit();
+				}
+				fd = open(t, O_WRONLY);
+				if (fd < 0) {
+					debugf("open %s failed!\n", t);
+					exit();
+				}
+				dup(fd, 1);
+				close(fd);
+				break;
+			}
+			case '|': {
+				int p[2];
+				pipe(p);
+				*rightpipe = fork();
+				if (*rightpipe == 0) {
+					dup(p[0], 0);
+					close(p[0]);
+					close(p[1]);
+					return parsecmd(argv, rightpipe);
+				} else if (*rightpipe > 0) {
+					dup(p[1], 1);
+					close(p[1]);
+					close(p[0]);
+					return argc;
+				}
+				break;
+			}
 		}
 	}
-
 	return argc;
 }
 
@@ -157,7 +162,7 @@ int runcmd(char *s) {
 		debugf("arg %d: %s\n", i, argv[i]);
 	}
 	int child = spawn(argv[0], argv);
-	close_all();
+	// close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
 		debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
@@ -168,6 +173,7 @@ int runcmd(char *s) {
 	if (rightpipe) {
 		wait(rightpipe);
 	}
+	debugf("\033[1;35menv %d finished running %s\n\033[0m", child, argv[0]);
 	return exit_status;
 }
 
