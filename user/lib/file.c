@@ -259,3 +259,9 @@ int remove(const char *path) {
 int sync(void) {
 	return fsipc_sync();
 }
+
+// Overview:
+// Create file or directory at specified path.
+int create(const char *path, int type) {
+	return fsipc_create(path, type);
+}

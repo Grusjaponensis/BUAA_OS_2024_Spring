@@ -3,7 +3,10 @@
 
 #define WHITESPACE " \t\r\n"
 #define SYMBOLS "<|>&;()"
-#define SUFFIX ".b"
+
+#define NONE 0
+#define AND 1
+#define OR 2
 
 /* Overview:
  *   Parse the next token from the string at s.
@@ -150,14 +153,14 @@ int runcmd(char *s) {
 		s[len + 2] = 0;
 		argv[0] = s;
 	}
-	// for (int i = 0; i < argc; i++) {
-	// 	debugf("arg %d: %s\n", i, argv[i]);
-	// }
+	for (int i = 0; i < argc; i++) {
+		debugf("arg %d: %s\n", i, argv[i]);
+	}
 	int child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
-		// debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
+		debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
 		wait(child);
 	} else {
 		debugf("spawn %s: %d\n", argv[0], child);
@@ -169,22 +172,45 @@ int runcmd(char *s) {
 }
 
 void conditionally_run(char *s) {
-	char buf[1024];
-	int pos = 0;
-	int r;
-	int return_value = -1;
-	while (*s) {
-		if (*s == '&' && *(s + 1) == '&') {
-			// AND
+    char buf[1024];
+    int pos = 0;
+    int return_value = 0;
+    int previous_op = NONE;
 
-		} else if (*s == '|' && *(s + 1) == '|') {
-			// OR
+    while (*s) {
+        if (*s == '&' && *(s + 1) == '&') {
+            // AND
+            s += 2;
+            buf[pos] = '\0';
+            if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
+                debugf("current buf: %s\n", buf);
+				return_value = runcmd(buf);
+            }
+            previous_op = AND;
+            pos = 0;
+        } else if (*s == '|' && *(s + 1) == '|') {
+            // OR
+            s += 2;
+            buf[pos] = '\0';
+            if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
+				debugf("current buf: %s\n", buf);
+                return_value = runcmd(buf);
+            }
+            previous_op = OR;
+            pos = 0;
+        } else {
+            buf[pos++] = *s++;
+            buf[pos] = '\0';
+        }
+    }
 
-		} else {
-			buf[pos++] = *s++;
-		}
-	}
-	exit();
+    if (pos > 0) {
+        buf[pos] = '\0';
+        if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
+            debugf("current buf: %s\n", buf);
+			return_value = runcmd(buf);
+        }
+    }
 }
 
 void readline(char *buf, u_int n) {
@@ -268,12 +294,11 @@ int main(int argc, char **argv) {
 		if (echocmds) {
 			printf("# %s\n", buf);
 		}
-		// conditionally_run(buf);
 		if ((r = fork()) < 0) {
 			user_panic("fork: %d", r);
 		}
 		if (r == 0) {
-			runcmd(buf);
+			conditionally_run(buf);
 			exit();
 		} else {
 			wait(r);

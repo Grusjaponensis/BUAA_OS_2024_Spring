@@ -136,3 +136,14 @@ int fsipc_remove(const char *path) {
 int fsipc_sync(void) {
 	return fsipc(FSREQ_SYNC, fsipcbuf, 0, 0);
 }
+
+// Overview:
+//  Ask the file server to create file or directory
+//  at specified path.
+int fsipc_create(const char *path, int type) {
+	struct Fsreq_create *req;
+	req = (struct Fsreq_create *)fsipcbuf;
+	req->type = type;
+	strcpy((char *)req->req_path, path);
+	return fsipc(FSREQ_CREATE, req, 0, 0);
+}
