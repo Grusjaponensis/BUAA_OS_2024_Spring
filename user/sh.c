@@ -2,7 +2,7 @@
 #include <lib.h>
 
 #define WHITESPACE " \t\r\n"
-#define SYMBOLS "<|>&;()#"
+#define SYMBOLS "<|>;&()#"
 
 // run condition
 #define NONE 0
@@ -139,7 +139,93 @@ int parsecmd(char **argv, int *rightpipe) {
 	return argc;
 }
 
+int run_backquotes(char *s, char *result) {
+	int p[2];
+	int r;
+
+	if (pipe(p) < 0) {
+		debugf("Cannot create pipe at %s, %s\n", __FILE__, __LINE__);
+		return 1;
+	}
+	int child;
+	if ((child = fork()) < 0) {
+		debugf("fork: %d\n", child);
+		return 1;
+	}
+	if (child == 0) {
+		// child process
+		dup(p[1], 1);
+		close(p[1]);
+		close(p[0]);
+		conditionally_run(s);
+		exit();
+	} else {
+		// parent process
+		close(p[1]);
+		for (int i = 0; i < 1024; i++) {
+			if ((r = read(p[0], result + i, 1)) != 1) {
+				if (r < 0) {
+					debugf("read: %d\n", r);
+				}
+				break;
+			}
+		}
+		close(p[0]);
+		wait(child);
+	}
+	return 0;
+}
+
+int replace_backquotes(char *s) {
+	char out_buf[MAXPATHLEN] = {0};
+	char backquotes_buf[MAXPATHLEN] = {0};
+	char result[MAXPATHLEN];
+	char *begin_backquotes = NULL, *end_backquotes = NULL;
+	int find_backquote = 0;
+	int pos = 0, pos_backquotes = 0;
+
+	char temp[MAXPATHLEN];
+	char *t_temp = temp;
+	strcpy(temp, s);
+	
+	while (*t_temp) {
+		if (*t_temp == '`') {
+			if (!find_backquote) {
+				begin_backquotes = t_temp;
+			} else {
+				end_backquotes = t_temp;
+			}
+			find_backquote = (find_backquote == 0) ? 1 : 0;
+		} else {
+			if (!find_backquote) {
+				out_buf[pos++] = *t_temp;
+				out_buf[pos] = 0;
+			} else {
+				backquotes_buf[pos_backquotes++] = *t_temp;
+				backquotes_buf[pos_backquotes] = 0;
+			}
+		}
+		t_temp++;
+	}
+	if (begin_backquotes == NULL) {
+		// no backquotes, don't need any preprocessing
+		return 0;
+	}
+	char store[MAXPATHLEN];
+	strcpy(store, end_backquotes + 1);
+	debugf("out_buf: %s, quote_buf: %s\n", out_buf, backquotes_buf);
+	if (run_backquotes(backquotes_buf, result) != 0) {
+		return 1;
+	}
+	strcat(out_buf, result);
+	strcat(out_buf, store);
+	strcpy(s, out_buf);
+	return 0;
+}
+
 int runcmd(char *s) {
+	replace_backquotes(s);
+
 	gettoken(s, 0);
 
 	char *argv[MAXARGS];
@@ -174,7 +260,6 @@ int runcmd(char *s) {
 	if (rightpipe) {
 		wait(rightpipe);
 	}
-	debugf("\033[1;35menv %d finished running %s\n\033[0m", child, argv[0]);
 	return exit_status;
 }
 
@@ -184,10 +269,17 @@ void conditionally_run(char *s) {
     int return_value = 0;
     int previous_op = NONE;
 	int r;
+	int find_backquotes = 0;
 
     while (*s) {
-        if ((*s == '&' && *(s + 1) == '&') || 
-			(*s == '|' && *(s + 1) == '|')) {
+		if (*s == '`') {
+			find_backquotes = find_backquotes == 0 ? 1 : 0;
+			buf[pos++] = *s;
+			buf[pos] = 0;
+			s++;
+		} else if (((*s == '&' && *(s + 1) == '&') ||
+					(*s == '|' && *(s + 1) == '|')) &&
+					!find_backquotes) {
             // AND or OR
 			char temp = *s;
             s += 2;
@@ -212,21 +304,20 @@ void conditionally_run(char *s) {
             buf[pos] = '\0';
         }
     }
-
     if (pos > 0) {
         buf[pos] = '\0';
         if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
-				if ((r = fork()) < 0) {
-					user_panic("fork: %d", r);
-				}
-				if (r == 0) {
-					return_value = runcmd(buf);
-					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
-					exit();
-				} else {
-					return_value = ipc_recv(0, 0, 0);
-					wait(r);
-				}
+			if ((r = fork()) < 0) {
+				user_panic("fork: %d", r);
+			}
+			if (r == 0) {
+				return_value = runcmd(buf);
+				syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+				exit();
+			} else {
+				return_value = ipc_recv(0, 0, 0);
+				wait(r);
+			}
         }
     }
 }
@@ -313,15 +404,6 @@ int main(int argc, char **argv) {
 			printf("# %s\n", buf);
 		}
 		conditionally_run(buf);
-		// if ((r = fork()) < 0) {
-		// 	user_panic("fork: %d", r);
-		// }
-		// if (r == 0) {
-		// 	conditionally_run(buf);
-		// 	exit();
-		// } else {
-		// 	wait(r);
-		// }
 	}
 	return 0;
 }

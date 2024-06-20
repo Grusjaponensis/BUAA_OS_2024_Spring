@@ -95,3 +95,24 @@ int strcmp(const char *p, const char *q) {
 
 	return 0;
 }
+
+char *strcat(char *dest, const char *src) {
+    char *destPtr = dest;
+
+    // Move the pointer to the end of dest string
+    while (*destPtr != '\0') {
+        destPtr++;
+    }
+
+    // Copy the src string to the end of dest string
+    while (*src != '\0') {
+        *destPtr = *src;
+        destPtr++;
+        src++;
+    }
+
+    // Null terminate the concatenated string
+    *destPtr = '\0';
+
+    return dest;
+}
