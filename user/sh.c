@@ -9,6 +9,8 @@
 #define AND 1
 #define OR 2
 
+void conditionally_run(char *buf);
+
 /* Overview:
  *   Parse the next token from the string at s.
  *
@@ -157,6 +159,7 @@ int run_backquotes(char *s, char *result) {
 		dup(p[1], 1);
 		close(p[1]);
 		close(p[0]);
+		// debugf("conditionally_run: %s\n", s);
 		conditionally_run(s);
 		exit();
 	} else {
@@ -177,49 +180,48 @@ int run_backquotes(char *s, char *result) {
 }
 
 int replace_backquotes(char *s) {
-	char out_buf[MAXPATHLEN] = {0};
-	char backquotes_buf[MAXPATHLEN] = {0};
-	char result[MAXPATHLEN];
+	char result[MAXPATHLEN] = {0};
+	char store[MAXPATHLEN] = {0};
 	char *begin_backquotes = NULL, *end_backquotes = NULL;
-	int find_backquote = 0;
-	int pos = 0, pos_backquotes = 0;
-
-	char temp[MAXPATHLEN];
-	char *t_temp = temp;
-	strcpy(temp, s);
-	
-	while (*t_temp) {
-		if (*t_temp == '`') {
-			if (!find_backquote) {
-				begin_backquotes = t_temp;
-			} else {
-				end_backquotes = t_temp;
+	char *temp;
+	int r;
+	while (1) {
+		// process all backquotes
+		temp = s;
+		begin_backquotes = NULL;
+		end_backquotes = NULL;
+		while (*temp) {
+			if (*temp == '`') {
+				begin_backquotes = temp++;
+				break;
 			}
-			find_backquote = (find_backquote == 0) ? 1 : 0;
-		} else {
-			if (!find_backquote) {
-				out_buf[pos++] = *t_temp;
-				out_buf[pos] = 0;
-			} else {
-				backquotes_buf[pos_backquotes++] = *t_temp;
-				backquotes_buf[pos_backquotes] = 0;
-			}
+			temp++;
 		}
-		t_temp++;
+		if (!begin_backquotes) {
+			// there are no backquotes
+			return 0;
+		}
+		while (*temp) {
+			if (*temp == '`') {
+				end_backquotes = temp++;
+				break;
+			}
+			temp++;
+		}
+		if (!end_backquotes) {
+			return 1;
+		}
+		*begin_backquotes = 0;
+		*end_backquotes = 0;
+		strcpy(store, end_backquotes + 1);
+		if ((r = run_backquotes(begin_backquotes + 1, result)) < 0) {
+			return 1;
+		}
+		// debugf("run_result: %s\n", result);
+		strcat(s, result);
+		strcat(s, store);
+		// debugf("result: %s\n", s);
 	}
-	if (begin_backquotes == NULL) {
-		// no backquotes, don't need any preprocessing
-		return 0;
-	}
-	char store[MAXPATHLEN];
-	strcpy(store, end_backquotes + 1);
-	debugf("out_buf: %s, quote_buf: %s\n", out_buf, backquotes_buf);
-	if (run_backquotes(backquotes_buf, result) != 0) {
-		return 1;
-	}
-	strcat(out_buf, result);
-	strcat(out_buf, store);
-	strcpy(s, out_buf);
 	return 0;
 }
 
