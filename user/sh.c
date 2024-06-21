@@ -9,6 +9,9 @@
 #define AND 1
 #define OR 2
 
+// history num
+#define HISTORY 20
+
 void conditionally_run(char *buf);
 
 /* Overview:
@@ -225,6 +228,31 @@ int replace_backquotes(char *s) {
 	return 0;
 }
 
+int history(int rightpipe) {
+	int fd;
+	int r;
+	if ((fd = open("/.mosh_history", O_RDONLY)) < 0) {
+		debugf("cannot open history file!\n");
+		return 1;
+	}
+	char buf[MAXPATHLEN];
+	for (int i = 0; i < 1024; i++) {
+		if ((r = read(fd, buf + i, 1)) != 1) {
+			if (r < 0) {
+				debugf("read: %d\n", r);
+			}
+			break;
+		}
+	}
+	debugf("%s", buf);
+	// close(fd);
+	close_all();
+	if (rightpipe) {
+		wait(rightpipe);
+	}
+	return 0;
+}
+
 int runcmd(char *s) {
 	replace_backquotes(s);
 
@@ -234,23 +262,34 @@ int runcmd(char *s) {
 	int rightpipe = 0;
 	int argc = parsecmd(argv, &rightpipe);
 	int exit_status = -1;
+	int r;
+
 	if (argc == 0) {
 		return 0;
 	}
 	argv[argc] = 0;
+	if (strcmp(argv[0], "history") == 0) {
+		if ((r = history(rightpipe)) != 0) {
+			return r;
+		}
+		return 0;
+	}
 	int len = strlen(argv[0]);
 	char temp[10] = {0};
-	if (len >= 2 && (argv[0][len - 2] != '.' || argv[0][len - 1] != 'b')) {
-		strcpy(temp, argv[0]);
-		temp[len] = '.';
-		temp[len + 1] = 'b';
-		temp[len + 2] = 0;
-		argv[0] = temp;
+	int child = spawn(argv[0], argv);
+	if (child < 0) {
+		if (len >= 2 && (argv[0][len - 2] != '.' || argv[0][len - 1] != 'b')) {
+			strcpy(temp, argv[0]);
+			temp[len] = '.';
+			temp[len + 1] = 'b';
+			temp[len + 2] = 0;
+			argv[0] = temp;
+		}
 	}
 	for (int i = 0; i < argc; i++) {
 		debugf("arg %d: %s\n", i, argv[i]);
 	}
-	int child = spawn(argv[0], argv);
+	child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
@@ -366,6 +405,7 @@ int main(int argc, char **argv) {
 	int r;
 	int interactive = iscons(0);
 	int echocmds = 0;
+	int fd;
 	printf("\n:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	printf("::                                                         ::\n");
 	printf("::                     MOS Shell 2024                      ::\n");
@@ -393,6 +433,13 @@ int main(int argc, char **argv) {
 		}
 		user_assert(r == 0);
 	}
+	if ((fd = open("/.mosh_history", O_RDWR)) < 0) {
+		if ((r = create("/.mosh_history", FTYPE_REG)) != 0) {
+			debugf("cannot create .mosh_history!\n");
+		}
+	}
+	char his_buf[HISTORY][MAXPATHLEN];
+	int i = 0;
 	for (;;) {
 		if (interactive) {
 			printf("\n$ ");
@@ -404,6 +451,17 @@ int main(int argc, char **argv) {
 		}
 		if (echocmds) {
 			printf("# %s\n", buf);
+		}
+		strcpy(his_buf[(i++) % HISTORY], buf);
+		if ((fd = open("/.mosh_history", O_RDWR)) >= 0) {
+			for (int j = 0; j < HISTORY; j++) {
+				char *cmd = his_buf[(i + j) % HISTORY];
+				if (cmd[0] == 0) {
+					continue;
+				}
+				fprintf(fd, "%s\n", cmd);
+			}
+			close(fd);
 		}
 		conditionally_run(buf);
 	}
