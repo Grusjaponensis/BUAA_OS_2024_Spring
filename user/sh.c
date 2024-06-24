@@ -388,9 +388,11 @@ void conditionally_run(char *s) {
 				user_panic("fork: %d\n", r);
 			}
 			if (r == 0) {
-				runcmd(buf);
+				return_value = runcmd(buf);
+				syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
 				exit();
 			} else {
+				return_value = ipc_recv(0, 0, 0);
 				wait(r);
 			}
 			pos = 0;
