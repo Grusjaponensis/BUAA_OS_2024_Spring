@@ -60,6 +60,7 @@ int _gettoken(char *s, char **p1, char **p2) {
 	}
 
 	if (*s == '\"') {
+		*s = 0;
 		*p1 = ++s;
 		while (*s != 0 && *s != '\"') {
 			s++;
@@ -127,6 +128,7 @@ int parsecmd(char **argv, int *rightpipe) {
 					exit();
 				}
 				argv[argc++] = t;
+				// debugf("t: %s\n", t);
 				break;
 			}
 			case '<': {
@@ -222,6 +224,7 @@ int replace_backquotes(char *s) {
 	char store[MAXPATHLEN] = {0};
 	char *begin_backquotes = NULL, *end_backquotes = NULL;
 	char *temp;
+	int find_quotes = 0;
 	int r;
 	while (1) {
 		// process all backquotes
@@ -229,7 +232,9 @@ int replace_backquotes(char *s) {
 		begin_backquotes = NULL;
 		end_backquotes = NULL;
 		while (*temp) {
-			if (*temp == '`') {
+			if (*temp == '\"') {
+				find_quotes = find_quotes == 0 ? 1 : 0;
+			} else if (*temp == '`' && !find_quotes) {
 				begin_backquotes = temp++;
 				break;
 			}
@@ -240,7 +245,9 @@ int replace_backquotes(char *s) {
 			return 0;
 		}
 		while (*temp) {
-			if (*temp == '`') {
+			if (*temp == '\"') {
+				find_quotes = find_quotes == 0 ? 1 : 0;
+			} else if (*temp == '`' && !find_quotes) {
 				end_backquotes = temp++;
 				break;
 			}
@@ -406,6 +413,7 @@ void conditionally_run(char *s) {
 				user_panic("fork: %d", r);
 			}
 			if (r == 0) {
+				// printf("\033[1;36mRUNNING: %s\n\033[0m", buf);
 				return_value = runcmd(buf);
 				syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
 				exit();
