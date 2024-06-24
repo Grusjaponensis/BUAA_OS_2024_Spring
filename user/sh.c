@@ -245,7 +245,6 @@ int history(int rightpipe) {
 		}
 	}
 	debugf("%s", buf);
-	// close(fd);
 	close_all();
 	if (rightpipe) {
 		wait(rightpipe);
@@ -285,11 +284,11 @@ int runcmd(char *s) {
 			temp[len + 2] = 0;
 			argv[0] = temp;
 		}
+		child = spawn(argv[0], argv);
 	}
 	for (int i = 0; i < argc; i++) {
 		debugf("arg %d: %s\n", i, argv[i]);
 	}
-	child = spawn(argv[0], argv);
 	close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
@@ -340,7 +339,20 @@ void conditionally_run(char *s) {
             }
 			previous_op = (temp == '&') ? AND : OR;
             pos = 0;
-        } else {
+        } else if (*s == ';') {
+			s++;
+			buf[pos] = 0;
+			if ((r = fork()) < 0) {
+				user_panic("fork: %d\n", r);
+			}
+			if (r == 0) {
+				runcmd(buf);
+				exit();
+			} else {
+				wait(r);
+			}
+			pos = 0;
+		} else {
             buf[pos++] = *s++;
             buf[pos] = '\0';
         }
@@ -438,7 +450,7 @@ int main(int argc, char **argv) {
 			debugf("cannot create .mosh_history!\n");
 		}
 	}
-	char his_buf[HISTORY][MAXPATHLEN];
+	char history[HISTORY][MAXPATHLEN];
 	int i = 0;
 	for (;;) {
 		if (interactive) {
@@ -452,10 +464,10 @@ int main(int argc, char **argv) {
 		if (echocmds) {
 			printf("# %s\n", buf);
 		}
-		strcpy(his_buf[(i++) % HISTORY], buf);
+		strcpy(history[(i++) % HISTORY], buf);
 		if ((fd = open("/.mosh_history", O_RDWR)) >= 0) {
 			for (int j = 0; j < HISTORY; j++) {
-				char *cmd = his_buf[(i + j) % HISTORY];
+				char *cmd = history[(i + j) % HISTORY];
 				if (cmd[0] == 0) {
 					continue;
 				}
