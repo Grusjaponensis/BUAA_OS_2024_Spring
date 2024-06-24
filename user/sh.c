@@ -292,8 +292,6 @@ int runcmd(char *s) {
 
 	gettoken(s, 0);
 
-	debugf("running: %s\n", s);
-
 	char *argv[MAXARGS];
 	int rightpipe = 0;
 	int argc = parsecmd(argv, &rightpipe);
@@ -323,9 +321,9 @@ int runcmd(char *s) {
 		}
 		child = spawn(argv[0], argv);
 	}
-	for (int i = 0; i < argc; i++) {
-		debugf("arg %d: %s\n", i, argv[i]);
-	}
+	// for (int i = 0; i < argc; i++) {
+	// 	debugf("arg %d: %s\n", i, argv[i]);
+	// }
 	close_all();
 	if (child >= 0) {
 		exit_status = ipc_recv(0, 0, 0);
