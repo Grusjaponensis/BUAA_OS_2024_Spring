@@ -339,7 +339,7 @@ void conditionally_run(char *s) {
             }
 			previous_op = (temp == '&') ? AND : OR;
             pos = 0;
-        } else if (*s == ';') {
+        } else if (*s == ';' && !find_backquotes) {
 			s++;
 			buf[pos] = 0;
 			if ((r = fork()) < 0) {
