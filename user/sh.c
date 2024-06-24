@@ -44,11 +44,29 @@ int _gettoken(char *s, char **p1, char **p2) {
 	}
 
 	if (strchr(SYMBOLS, *s)) {
+		if (*s == '>' && *(s + 1) == '>') {
+			*p1 = s;
+			*p1 = s;
+			*s = 0;
+			*(++s) = 0;
+			*p2 = s + 1;
+			return 'a';
+		}
 		int t = *s;
 		*p1 = s;
 		*s++ = 0;
 		*p2 = s;
 		return t;
+	}
+
+	if (*s == '\"') {
+		*p1 = ++s;
+		while (*s != 0 && *s != '\"') {
+			s++;
+		}
+		*s++ = 0;
+		*p2 = s;
+		return 'w';
 	}
 
 	*p1 = s;
@@ -85,6 +103,23 @@ int parsecmd(char **argv, int *rightpipe) {
 			case '#':
 			case 0: {
 				return argc;
+			}
+			case 'a': {
+				if (gettoken(0, &t) != 'w') {
+					debugf("syntax error: >> not followed by word\n");
+					exit();
+				}
+				if ((fd = open(t, O_WRONLY)) < 0) {
+					// file does not exist
+					create(t, FTYPE_REG);
+					fd = open(t, O_WRONLY);
+				}
+				struct Fd *pfd = (struct Fd *)num2fd(fd);
+				struct Filefd *fileFd = (struct Filefd *)pfd;
+				pfd->fd_offset = fileFd->f_file.f_size;
+				dup(fd, 1);
+				close(fd);
+				break;
 			}
 			case 'w': {
 				if (argc >= MAXARGS) {
@@ -257,6 +292,8 @@ int runcmd(char *s) {
 
 	gettoken(s, 0);
 
+	debugf("running: %s\n", s);
+
 	char *argv[MAXARGS];
 	int rightpipe = 0;
 	int argc = parsecmd(argv, &rightpipe);
@@ -309,17 +346,22 @@ void conditionally_run(char *s) {
     int return_value = 0;
     int previous_op = NONE;
 	int r;
-	int find_backquotes = 0;
+	int find_backquotes = 0, find_quotes = 0;
 
     while (*s) {
-		if (*s == '`') {
+		if (*s == '\"') {
+			find_quotes = find_quotes == 0 ? 1 : 0;
+			buf[pos++] = *s;
+			buf[pos] = 0;
+			s++;
+		} else if (*s == '`' && !find_quotes) {
 			find_backquotes = find_backquotes == 0 ? 1 : 0;
 			buf[pos++] = *s;
 			buf[pos] = 0;
 			s++;
 		} else if (((*s == '&' && *(s + 1) == '&') ||
 					(*s == '|' && *(s + 1) == '|')) &&
-					!find_backquotes) {
+					!find_backquotes && !find_quotes) {
             // AND or OR
 			char temp = *s;
             s += 2;
@@ -339,7 +381,7 @@ void conditionally_run(char *s) {
             }
 			previous_op = (temp == '&') ? AND : OR;
             pos = 0;
-        } else if (*s == ';' && !find_backquotes) {
+        } else if (*s == ';' && !find_backquotes && !find_quotes) {
 			s++;
 			buf[pos] = 0;
 			if ((r = fork()) < 0) {
