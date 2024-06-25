@@ -318,7 +318,7 @@ int history(int rightpipe) {
 
 int kill(int rightpipe, int id) {
 	if (id > job_cnt) {
-		user_panic("kill: job (%d) do not exist\n", id);
+		user_panic("fg: job (%d) do not exist\n", id);
 	}
 	// first update all status
 	int state;
@@ -333,7 +333,7 @@ int kill(int rightpipe, int id) {
 		syscall_env_destroy_without_perm(jobs[id - 1].env_id);
 		jobs[id - 1].state = JOB_FINISHED;
 	} else {
-		user_panic("kill: (0x%08x) not running\n", jobs[id - 1].env_id);
+		user_panic("fg: (0x%08x) not running\n", jobs[id - 1].env_id);
 	}
 	close_all();
 	if (rightpipe) {
