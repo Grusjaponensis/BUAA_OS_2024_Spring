@@ -9,7 +9,7 @@ void exit(void) {
 #if !defined(LAB) || LAB >= 5
 	close_all();
 #endif
-	debugf("\033[1;33menv %08x returned %d, send to env %08x\n\033[0m", env->env_id, exit_status, env->env_parent_id);
+	// debugf("\033[1;33menv %08x returned %d, send to env %08x\n\033[0m", env->env_id, exit_status, env->env_parent_id);
 	syscall_ipc_try_send(env->env_parent_id, exit_status, 0, 0);
 	syscall_env_destroy(0);
 	user_panic("unreachable code");

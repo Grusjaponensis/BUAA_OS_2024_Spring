@@ -8,6 +8,18 @@
 #include <syscall.h>
 #include <trap.h>
 
+// Jobs
+struct Job {
+	u_int id;
+	u_int env_id;
+	char buf[MAXPATHLEN];
+	int state;
+};
+
+// job states
+#define JOB_RUNNING 0
+#define JOB_FINISHED 1
+
 #define vpt ((const volatile Pte *)UVPT)
 #define vpd ((const volatile Pde *)(UVPT + (PDX(UVPT) << PGSHIFT)))
 #define envs ((const volatile struct Env *)UENVS)
@@ -52,6 +64,7 @@ int syscall_print_cons(const void *str, u_int num);
 u_int syscall_getenvid(void);
 void syscall_yield(void);
 int syscall_env_destroy(u_int envid);
+int syscall_env_destroy_without_perm(u_int envid);
 int syscall_set_tlb_mod_entry(u_int envid, void (*func)(struct Trapframe *));
 int syscall_mem_alloc(u_int envid, void *va, u_int perm);
 int syscall_mem_map(u_int srcid, void *srcva, u_int dstid, void *dstva, u_int perm);

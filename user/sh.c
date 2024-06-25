@@ -9,10 +9,23 @@
 #define AND 1
 #define OR 2
 
+// token type
+#define WORD 'w'
+#define APPEND 'a'
+#define OUTPUT_REDIRECT '>'
+#define INPUT_REDIRECT '<'
+#define PIPE '|'
+#define COMMENT '#'
+#define BACKGROUND '&'
+
 // history num
 #define HISTORY 20
 
 void conditionally_run(char *buf);
+int job_cnt = 0;
+struct Job jobs[1024];
+const char *r = "Running";
+const char *d = "Done";
 
 /* Overview:
  *   Parse the next token from the string at s.
@@ -46,11 +59,15 @@ int _gettoken(char *s, char **p1, char **p2) {
 	if (strchr(SYMBOLS, *s)) {
 		if (*s == '>' && *(s + 1) == '>') {
 			*p1 = s;
-			*p1 = s;
 			*s = 0;
 			*(++s) = 0;
 			*p2 = s + 1;
-			return 'a';
+			return APPEND;
+		} else if (*s == '&') {
+			*p1 = s;
+			*s++ = 0;
+			*p2 = s;
+			return BACKGROUND;
 		}
 		int t = *s;
 		*p1 = s;
@@ -67,7 +84,7 @@ int _gettoken(char *s, char **p1, char **p2) {
 		}
 		*s++ = 0;
 		*p2 = s;
-		return 'w';
+		return WORD;
 	}
 
 	*p1 = s;
@@ -75,7 +92,7 @@ int _gettoken(char *s, char **p1, char **p2) {
 		s++;
 	}
 	*p2 = s;
-	return 'w';
+	return WORD;
 }
 
 int gettoken(char *s, char **p1) {
@@ -98,14 +115,14 @@ int parsecmd(char **argv, int *rightpipe) {
 	int argc = 0;
 	while (1) {
 		char *t;
-		int fd, r;
+		int fd;
 		int c = gettoken(0, &t);
 		switch (c) {
-			case '#':
+			case COMMENT:
 			case 0: {
 				return argc;
 			}
-			case 'a': {
+			case APPEND: {
 				if (gettoken(0, &t) != 'w') {
 					debugf("syntax error: >> not followed by word\n");
 					exit();
@@ -122,7 +139,7 @@ int parsecmd(char **argv, int *rightpipe) {
 				close(fd);
 				break;
 			}
-			case 'w': {
+			case WORD: {
 				if (argc >= MAXARGS) {
 					debugf("too many arguments\n");
 					exit();
@@ -131,7 +148,7 @@ int parsecmd(char **argv, int *rightpipe) {
 				// debugf("t: %s\n", t);
 				break;
 			}
-			case '<': {
+			case INPUT_REDIRECT: {
 				if (gettoken(0, &t) != 'w') {
 					debugf("syntax error: < not followed by word\n");
 					exit();
@@ -145,7 +162,7 @@ int parsecmd(char **argv, int *rightpipe) {
 				close(fd);
 				break;
 			}
-			case '>': {
+			case OUTPUT_REDIRECT: {
 				if (gettoken(0, &t) != 'w') {
 					debugf("syntax error: > not followed by word\n");
 					exit();
@@ -159,7 +176,7 @@ int parsecmd(char **argv, int *rightpipe) {
 				close(fd);
 				break;
 			}
-			case '|': {
+			case PIPE: {
 				int p[2];
 				pipe(p);
 				*rightpipe = fork();
@@ -175,6 +192,9 @@ int parsecmd(char **argv, int *rightpipe) {
 					return argc;
 				}
 				break;
+			}
+			case BACKGROUND: {
+				return argc;
 			}
 		}
 	}
@@ -232,6 +252,7 @@ int replace_backquotes(char *s) {
 		begin_backquotes = NULL;
 		end_backquotes = NULL;
 		while (*temp) {
+			// notice that backquotes and quotes could embed
 			if (*temp == '\"') {
 				find_quotes = find_quotes == 0 ? 1 : 0;
 			} else if (*temp == '`' && !find_quotes) {
@@ -245,6 +266,7 @@ int replace_backquotes(char *s) {
 			return 0;
 		}
 		while (*temp) {
+			// notice that backquotes and quotes could embed
 			if (*temp == '\"') {
 				find_quotes = find_quotes == 0 ? 1 : 0;
 			} else if (*temp == '`' && !find_quotes) {
@@ -294,7 +316,74 @@ int history(int rightpipe) {
 	return 0;
 }
 
-int runcmd(char *s) {
+int kill(int rightpipe, int id) {
+	if (id > job_cnt) {
+		user_panic("kill: job (%d) do not exist\n", id);
+	}
+	// first update all status
+	int state;
+	for (int i = 0; i < job_cnt; i++) {
+		state = envs[ENVX(jobs[i].env_id)].env_status;
+		if (jobs[i].state == JOB_RUNNING) {
+			jobs[i].state = (state == ENV_FREE) ? JOB_FINISHED : JOB_RUNNING;
+		}
+	}
+	if (jobs[id - 1].state == JOB_RUNNING) {
+		// debugf("hi, try to kill job_env_id: %08x\n", jobs[id - 1].env_id);
+		syscall_env_destroy_without_perm(jobs[id - 1].env_id);
+		jobs[id - 1].state = JOB_FINISHED;
+	} else {
+		user_panic("kill: (0x%08x) not running\n", jobs[id - 1].env_id);
+	}
+	close_all();
+	if (rightpipe) {
+		wait(rightpipe);
+	}
+	return 0;
+}
+
+int jobs_cmd(int rightpipe) {
+	int state = 0;
+	for (int i = 0; i < job_cnt; i++) {
+		state = envs[ENVX(jobs[i].env_id)].env_status;
+		if (jobs[i].state == JOB_RUNNING) {
+			jobs[i].state = (state == ENV_FREE) ? JOB_FINISHED : JOB_RUNNING;
+		}
+		// debugf("state: %d\n", state);
+		debugf("[%d] %-10s 0x%08x %s\n", jobs[i].id, jobs[i].state == JOB_RUNNING ? r : d, jobs[i].env_id, jobs[i].buf);
+	}
+	close_all();
+	if (rightpipe) {
+		wait(rightpipe);
+	}
+	return 0;
+}
+
+int fg(int rightpipe, int id) {
+	if (id > job_cnt) {
+		user_panic("fg: job (%d) do not exist\n", id);
+	}
+	int state;
+	for (int i = 0; i < job_cnt; i++) {
+		state = envs[ENVX(jobs[i].env_id)].env_status;
+		if (jobs[i].state == JOB_RUNNING) {
+			jobs[i].state = (state == ENV_FREE) ? JOB_FINISHED : JOB_RUNNING;
+		}
+	}
+	if (jobs[id - 1].state == JOB_RUNNING) {
+		wait(jobs[id - 1].env_id);
+		jobs[id - 1].state = JOB_FINISHED;
+	} else {
+		user_panic("fg: (0x%08x) not running\n", jobs[id - 1].env_id);
+	}
+	close_all();
+	if (rightpipe) {
+		wait(rightpipe);
+	}
+	return 0;
+}
+
+int runcmd(char *s, int bg) {
 	replace_backquotes(s);
 
 	gettoken(s, 0);
@@ -310,9 +399,27 @@ int runcmd(char *s) {
 	}
 	argv[argc] = 0;
 	if (strcmp(argv[0], "history") == 0) {
-		if ((r = history(rightpipe)) != 0) {
-			return r;
+		history(rightpipe);
+		return 0;
+	} else if (strcmp(argv[0], "fg") == 0) {
+		int id = 0;
+		char *arg = argv[1];
+		while (*arg && *arg <= '9' && *arg >= '0') {
+			id = (*arg++ - '0') + id * 10;
 		}
+		fg(rightpipe, id);
+		return 0;
+	} else if (strcmp(argv[0], "jobs") == 0) {
+		jobs_cmd(rightpipe);
+		return 0;
+	} else if (strcmp(argv[0], "kill") == 0) {
+		// suppose that the arg is legal
+		int id = 0;
+		char *arg = argv[1];
+		while (*arg && *arg <= '9' && *arg >= '0') {
+			id = (*arg++ - '0') + id * 10;
+		}
+		kill(rightpipe, id);
 		return 0;
 	}
 	int len = strlen(argv[0]);
@@ -333,8 +440,12 @@ int runcmd(char *s) {
 	// }
 	close_all();
 	if (child >= 0) {
+		if (bg) {
+			// tell parent process its env_id for recording
+			syscall_ipc_try_send(env->env_parent_id, child, 0, 0);
+		}
 		exit_status = ipc_recv(0, 0, 0);
-		debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
+		// debugf("\033[1;34menv %08x recieved return value %d\n\033[0m", env->env_id, exit_status);
 		wait(child);
 	} else {
 		debugf("spawn %s: %d\n", argv[0], child);
@@ -371,17 +482,41 @@ void conditionally_run(char *s) {
 			char temp = *s;
             s += 2;
             buf[pos] = '\0';
+			// search for '&' for background executing
+			int bg = 0;
+			for (int i = strlen(buf) - 1; i >= 1; i--) {
+				if (buf[i] == '&' && buf[i - 1] != '&') {
+					bg = 1;
+					break;
+				} else if (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\n' || buf[i] == '\r') {
+					break;
+				}
+			}
             if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
 				if ((r = fork()) < 0) {
 					user_panic("fork: %d", r);
 				}
 				if (r == 0) {
-					return_value = runcmd(buf);
-					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+					return_value = runcmd(buf, bg);
+					if (bg == 0) {
+						// will not be executed in background
+						syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+					}
 					exit();
 				} else {
-					return_value = ipc_recv(0, 0, 0);
-					wait(r);
+					if (bg == 0) {
+						return_value = ipc_recv(0, 0, 0);
+						wait(r);
+					} else {
+						// execute in background, so recieve its env_id
+						jobs[job_cnt].env_id = ipc_recv(0, 0, 0);
+						jobs[job_cnt].id = job_cnt + 1;
+						// copy all the command to buf
+						strcpy(jobs[job_cnt].buf, buf);
+						jobs[job_cnt].state = JOB_RUNNING;
+						job_cnt++;
+						return_value = 0;
+					}
 				}
             }
 			previous_op = (temp == '&') ? AND : OR;
@@ -389,16 +524,36 @@ void conditionally_run(char *s) {
         } else if (*s == ';' && !find_backquotes && !find_quotes) {
 			s++;
 			buf[pos] = 0;
+			int bg = 0;
+			for (int i = strlen(buf) - 1; i >= 1; i--) {
+				if (buf[i] == '&' && buf[i - 1] != '&') {
+					bg = 1;
+					break;
+				} else if (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\n' || buf[i] == '\r') {
+					break;
+				}
+			}
 			if ((r = fork()) < 0) {
 				user_panic("fork: %d\n", r);
 			}
 			if (r == 0) {
-				return_value = runcmd(buf);
-				syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+				return_value = runcmd(buf, bg);
+				if (bg == 0) {
+					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+				}
 				exit();
 			} else {
-				return_value = ipc_recv(0, 0, 0);
-				wait(r);
+				if (bg == 0) {
+					return_value = ipc_recv(0, 0, 0);
+					wait(r);
+				} else {
+					jobs[job_cnt].env_id = ipc_recv(0, 0, 0);
+					jobs[job_cnt].id = job_cnt + 1;
+					strcpy(jobs[job_cnt].buf, buf);
+					jobs[job_cnt].state = JOB_RUNNING;
+					job_cnt++;
+					return_value = 0;
+				}
 			}
 			pos = 0;
 		} else {
@@ -409,17 +564,37 @@ void conditionally_run(char *s) {
     if (pos > 0) {
         buf[pos] = '\0';
         if (previous_op == NONE || (previous_op == AND && return_value == 0) || (previous_op == OR && return_value != 0)) {
+			int bg = 0;
+			for (int i = strlen(buf) - 1; i >= 1; i--) {
+				if (buf[i] == '&' && buf[i - 1] != '&') {
+					bg = 1;
+					break;
+				} else if (buf[i] == ' ' || buf[i] == '\t' || buf[i] == '\n' || buf[i] == '\r') {
+					break;
+				}
+			}
 			if ((r = fork()) < 0) {
-				user_panic("fork: %d", r);
+				user_panic("fork: %d\n", r);
 			}
 			if (r == 0) {
-				// printf("\033[1;36mRUNNING: %s\n\033[0m", buf);
-				return_value = runcmd(buf);
-				syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+				printf("\033[1;36mRUNNING: %s, bg: %d\n\033[0m", buf, bg);
+				return_value = runcmd(buf, bg);
+				if (bg == 0) {
+					syscall_ipc_try_send(env->env_parent_id, return_value, 0, 0);
+				}
 				exit();
 			} else {
-				return_value = ipc_recv(0, 0, 0);
-				wait(r);
+				if (bg == 0) {
+					return_value = ipc_recv(0, 0, 0);
+					wait(r);
+				} else {
+					jobs[job_cnt].env_id = ipc_recv(0, 0, 0);
+					jobs[job_cnt].id = job_cnt + 1;
+					strcpy(jobs[job_cnt].buf, buf);
+					jobs[job_cnt].state = JOB_RUNNING;
+					job_cnt++;
+					return_value = 0;
+				}
 			}
         }
     }
@@ -468,6 +643,8 @@ int main(int argc, char **argv) {
 	int interactive = iscons(0);
 	int echocmds = 0;
 	int fd;
+	int i = 0;
+	char history[HISTORY][MAXPATHLEN];
 	printf("\n:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::\n");
 	printf("::                                                         ::\n");
 	printf("::                     MOS Shell 2024                      ::\n");
@@ -496,12 +673,8 @@ int main(int argc, char **argv) {
 		user_assert(r == 0);
 	}
 	if ((fd = open("/.mosh_history", O_RDWR)) < 0) {
-		if ((r = create("/.mosh_history", FTYPE_REG)) != 0) {
-			debugf("cannot create .mosh_history!\n");
-		}
+		create("/.mosh_history", FTYPE_REG);
 	}
-	char history[HISTORY][MAXPATHLEN];
-	int i = 0;
 	for (;;) {
 		if (interactive) {
 			printf("\n$ ");
@@ -514,14 +687,15 @@ int main(int argc, char **argv) {
 		if (echocmds) {
 			printf("# %s\n", buf);
 		}
+		// copy the whole cmd to buf
 		strcpy(history[(i++) % HISTORY], buf);
 		if ((fd = open("/.mosh_history", O_RDWR)) >= 0) {
 			for (int j = 0; j < HISTORY; j++) {
-				char *cmd = history[(i + j) % HISTORY];
-				if (cmd[0] == 0) {
-					continue;
+				// notice that we only record 20 history cmd
+				// if cmd is null, skip
+				if (history[(i + j) % HISTORY][0] != 0) {
+					fprintf(fd, "%s\n", history[(i + j) % HISTORY]);
 				}
-				fprintf(fd, "%s\n", cmd);
 			}
 			close(fd);
 		}
